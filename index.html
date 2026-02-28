@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>JI Composition Trainer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>JI Composition Trainer</h1>
+
+
+        <!-- Chord Mode Panel -->
+        <div id="chord-mode-panel" class="panel" style="display: none;">
+            <h2>Chord Mode</h2>
+            <button id="back-to-adaptive-from-chord-btn" class="btn-secondary">← Back to Adaptive Mode</button>
+
+            <div class="chord-levels-grid">
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 1</h3>
+                    <button class="chord-level-card" data-chord-level="1">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">1</span>
+                            <span class="chord-level-desc">Major & Minor (20 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 2</h3>
+                    <button class="chord-level-card" data-chord-level="2">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">2</span>
+                            <span class="chord-level-desc">Diminished & Augmented (20 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 3</h3>
+                    <button class="chord-level-card" data-chord-level="3">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">3</span>
+                            <span class="chord-level-desc">All Basic Triads (40 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 4</h3>
+                    <button class="chord-level-card" data-chord-level="4">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">4</span>
+                            <span class="chord-level-desc">Sus4 & Sus2 (20 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 5</h3>
+                    <button class="chord-level-card" data-chord-level="5">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">5</span>
+                            <span class="chord-level-desc">All Triads (60 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 6</h3>
+                    <button class="chord-level-card" data-chord-level="6">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">6</span>
+                            <span class="chord-level-desc">Dominant, Major & Minor 7th (30 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 7</h3>
+                    <button class="chord-level-card" data-chord-level="7">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">7</span>
+                            <span class="chord-level-desc">Harmonic & Subminor 7th (20 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 8</h3>
+                    <button class="chord-level-card" data-chord-level="8">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">8</span>
+                            <span class="chord-level-desc">All 7th Chords (50 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 9</h3>
+                    <button class="chord-level-card" data-chord-level="9">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">9</span>
+                            <span class="chord-level-desc">Major & Minor 6th (20 questions)</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="chord-level-pair">
+                    <h3 class="pair-title">Level 10</h3>
+                    <button class="chord-level-card" data-chord-level="10">
+                        <div class="chord-level-info">
+                            <span class="chord-level-num">10</span>
+                            <span class="chord-level-desc">All Chords (90 questions)</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Adaptive Mode Panel -->
+        <div id="adaptive-mode-panel" class="panel">
+            <div class="panel-header">
+                <h2>Adaptive Progressive Mode</h2>
+                <div class="header-buttons">
+                    <button id="chord-mode-btn">Chord Mode</button>
+                    <button id="mapping-config-btn">Configure Mappings</button>
+                    <button id="help-btn" class="help-btn" title="Help">?</button>
+                </div>
+            </div>
+
+            <div class="adaptive-settings">
+                <h3>Settings</h3>
+                <div class="setting-row">
+                    <label>
+                        Mastery Time Threshold:
+                        <input type="number" id="mastery-threshold-input" min="0.5" max="10" step="0.5" value="2.5" class="small-number-input"> seconds
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Minimum Attempts Before Mastery:
+                        <input type="number" id="min-attempts-input" min="3" max="20" value="5" class="small-number-input"> attempts
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        New Interval Weight:
+                        <input type="number" id="new-interval-weight-input" min="1" max="10" value="3" class="small-number-input">× more likely
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Rolling Average Window:
+                        <input type="number" id="rolling-average-window-input" min="3" max="20" value="10" class="small-number-input"> recent attempts
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Non-Mastered Question Rate:
+                        <input type="number" id="non-mastered-rate-input" min="10" max="90" step="5" value="60" class="small-number-input">%
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Display Mode:
+                        <select id="display-mode-select-adaptive" class="display-mode-select">
+                            <option value="all">All (Fraction + Cents + Name)</option>
+                            <option value="fraction">Fraction Only</option>
+                            <option value="cents">Cents Only</option>
+                            <option value="name">Name Only</option>
+                            <option value="rotate-fraction-cents">Rotate: Fraction ↔ Cents</option>
+                            <option value="rotate-fraction-name">Rotate: Fraction ↔ Name</option>
+                            <option value="rotate-cents-name">Rotate: Cents ↔ Name</option>
+                            <option value="rotate-all">Rotate: All Three</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="repeat-slow-checkbox" checked>
+                        Repeat questions that take longer than <input type="number" id="repeat-slow-input" min="1" max="60" value="5" class="small-number-input">s
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="ear-training-checkbox">
+                        Ear training only (hide target interval)
+                    </label>
+                </div>
+            </div>
+
+            <div class="adaptive-settings">
+                <h3>Sound Settings</h3>
+                <div class="setting-row">
+                    <label>
+                        Synth Type:
+                        <select id="synth-type-select">
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="sine">Sine</option>
+                            <option value="square">Square</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Release Time:
+                        <input type="number" id="release-time-input" min="1" max="6" step="0.5" value="2" class="small-number-input"> seconds
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="vary-pitch-checkbox" checked>
+                        Vary starting pitch (-500¢ to +1200¢)
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="enable-sound-checkbox" checked>
+                        Enable sound
+                    </label>
+                </div>
+            </div>
+
+            <div class="adaptive-progress">
+                <div class="adaptive-level-display">
+                    <h3>Current Level: <span id="adaptive-level-number">1</span></h3>
+                    <p class="level-description">Unlock new levels by mastering intervals!</p>
+                </div>
+                <h3>Progress</h3>
+                <div id="adaptive-stats" class="adaptive-stats">
+                    <p>Click "Start/Continue" to begin!</p>
+                </div>
+            </div>
+
+            <div class="adaptive-actions">
+                <button id="start-adaptive-btn" class="btn-primary large-btn">Start / Continue</button>
+                <button id="reset-adaptive-btn" class="btn-secondary">Reset Progress</button>
+            </div>
+
+            <div class="adaptive-resume-section">
+                <h3>Resume from Specific Level</h3>
+                <p class="resume-description">If your progress was lost, enter the number of intervals you had unlocked:</p>
+                <div class="resume-input-group">
+                    <label>
+                        Number of Intervals:
+                        <input type="number" id="resume-level-input" min="1" max="200" value="1" class="small-number-input">
+                    </label>
+                    <button id="resume-level-btn" class="btn-secondary">Resume Progress</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Modal -->
+        <div id="help-modal" class="help-modal" style="display: none;">
+            <div class="help-modal-content">
+                <div class="help-modal-header">
+                    <h3>How to Use This Trainer</h3>
+                    <button id="close-help-btn" class="close-help-btn">&times;</button>
+                </div>
+                <div class="help-modal-body">
+                    <div class="help-section">
+                        <h4>Game Overview</h4>
+                        <p>This game teaches you to decompose just intonation ratios into prime factorizations using keystroke shortcuts.</p>
+                        <p>For example, to create 6/5, you would press the keys for 3/2 and 4/5 (since 3/2 × 4/5 = 6/5).</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h4>Controls</h4>
+                        <ul>
+                            <li><strong>Number keys (1234567890):</strong> Prime ratios (2/1, 3/2, 5/4, etc.)</li>
+                            <li><strong>Letter keys (qwertyuiop):</strong> Reciprocals (1/2, 2/3, 4/5, etc.)</li>
+                            <li><strong>Backspace:</strong> Clear current answer</li>
+                            <li><strong>Order doesn't matter:</strong> 3/2 then 4/5 is the same as 4/5 then 3/2</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h4>Default Key Mappings</h4>
+                        <p><strong>Prime ratios (suggested number keys):</strong></p>
+                        <ul>
+                            <li>2/1 → 1, 3/2 → 2, 5/4 → 3, 7/4 → 4, 11/8 → 5</li>
+                            <li>13/8 → 6, 17/16 → 7, 19/16 → 8, 23/16 → 9, 29/16 → 0</li>
+                        </ul>
+                        <p><strong>Reciprocal ratios (suggested letter keys):</strong></p>
+                        <ul>
+                            <li>1/2 → q, 2/3 → w, 4/5 → e, 4/7 → r, 8/11 → t</li>
+                            <li>8/13 → y, 16/17 → u, 16/19 → i, 16/23 → o, 16/29 → p</li>
+                        </ul>
+                        <p><em>You can customize these mappings in the Configure Mappings menu.</em></p>
+                    </div>
+
+                    <div class="help-section">
+                        <h4>Level Progression</h4>
+                        <ul>
+                            <li><strong>Complexity = numerator × denominator</strong></li>
+                            <li>Higher complexity means more challenging decompositions</li>
+                            <li>All intervals use numbers ≤ 30</li>
+                            <li>All intervals are octave-reduced (between 1/1 and 2/1)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mapping Configuration Panel -->
+        <div id="mapping-panel" class="panel" style="display: none;">
+            <h2>Key Mapping Configuration</h2>
+            <button id="back-to-adaptive-btn" class="btn-secondary">← Back to Adaptive Mode</button>
+
+            <div class="settings-section">
+                <h3>Customize Key Mappings</h3>
+                <p>Assign keyboard keys to each just intonation ratio. The prime ratios are fixed - choose which keystroke you want for each one.</p>
+
+                <div class="mapping-grid">
+                    <div class="mapping-column">
+                        <h4>Prime Ratios (Numbers)</h4>
+                        <div id="prime-mappings"></div>
+                    </div>
+                    <div class="mapping-column">
+                        <h4>Reciprocals (Letters)</h4>
+                        <div id="reciprocal-mappings"></div>
+                    </div>
+                </div>
+
+                <div class="mapping-actions">
+                    <button id="reset-mappings-btn" class="btn-secondary">Reset to Defaults</button>
+                    <button id="save-mappings-btn" class="btn-primary">Save & Continue</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Panel -->
+        <div id="game-panel" class="panel" style="display: none;">
+            <div class="game-panel-header">
+                <div id="adaptive-level-indicator" class="adaptive-level-indicator" style="display: none;">
+                    Level <span id="game-level-number">1</span>
+                </div>
+                <div class="header-buttons">
+                    <button id="pause-btn" class="btn-secondary">⏸️ Pause</button>
+                    <button id="settings-btn" class="btn-secondary">⚙️ Settings</button>
+                    <button id="help-btn-game" class="help-btn" title="Help">?</button>
+                </div>
+            </div>
+
+            <div class="score-display">
+                <div class="score-item">
+                    <span class="score-label">Timer:</span>
+                    <span id="timer">0:00.00</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Questions:</span>
+                    <span id="question-count">0</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Avg Time:</span>
+                    <span id="avg-time">0.00s</span>
+                </div>
+            </div>
+
+            <!-- Interval Progress (Adaptive Mode Only) -->
+            <div id="game-interval-progress" class="game-interval-progress" style="display: none;">
+                <h3>Interval Progress</h3>
+                <div id="game-progress-stats" class="game-progress-stats"></div>
+            </div>
+
+            <!-- Keyboard Legend -->
+            <div class="keyboard-legend">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">Keyboard Reference</h3>
+                    <button id="mapping-config-btn-game" class="btn-secondary" style="padding: 8px 16px; font-size: 0.9em;">Configure Mappings</button>
+                </div>
+                <div class="legend-grid" id="keyboard-legend-grid"></div>
+            </div>
+
+            <!-- Target Interval Display -->
+            <div class="interval-display">
+                <div class="interval-label">Target Interval:</div>
+                <div id="target-interval" class="interval-value">3/2</div>
+            </div>
+
+            <!-- Current Composition Display -->
+            <div class="composition-display">
+                <div id="current-composition" class="composition-value">Press keys to build...</div>
+            </div>
+
+            <div id="feedback" class="feedback"></div>
+
+            <div class="game-controls">
+                <button id="skip-btn" class="btn-secondary">Skip</button>
+                <button id="end-btn" class="btn-secondary">End Game</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
