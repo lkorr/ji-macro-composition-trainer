@@ -42,6 +42,9 @@ let varyPitch = true; // vary starting pitch
 let enableSound = true; // enable/disable sound
 let earTrainingMode = false; // hide target interval for ear training
 
+// Submit key
+let submitKey = '`'; // default submit key
+
 // Key mappings - default mappings
 const DEFAULT_PRIME_MAPPINGS = {
     '1': { num: 2, denom: 1 },
@@ -583,6 +586,9 @@ function saveSettings() {
     const enableSoundCheckbox = document.getElementById('enable-sound-checkbox');
     const earTrainingCheckbox = document.getElementById('ear-training-checkbox');
 
+    // Submit key input
+    const submitKeyInput = document.getElementById('submit-key-input');
+
     // Update variables from inputs
     if (masteryInput) masteryThreshold = parseFloat(masteryInput.value);
     if (minAttemptsInput) minAttemptsForMastery = parseInt(minAttemptsInput.value);
@@ -598,6 +604,7 @@ function saveSettings() {
     if (varyPitchCheckbox !== null) varyPitch = varyPitchCheckbox.checked;
     if (enableSoundCheckbox !== null) enableSound = enableSoundCheckbox.checked;
     if (earTrainingCheckbox !== null) earTrainingMode = earTrainingCheckbox.checked;
+    if (submitKeyInput) submitKey = submitKeyInput.value || '`';
 
     const settings = {
         // Adaptive mode settings
@@ -611,6 +618,7 @@ function saveSettings() {
         // General settings
         repeatSlowThreshold: repeatSlowThreshold,
         repeatSlowEnabled: repeatSlowCheckbox?.checked ?? true,
+        submitKey: submitKey,
 
         // Sound settings
         synthType: synthType,
@@ -643,6 +651,7 @@ function loadSettings() {
             if (settings.varyPitch !== undefined) varyPitch = settings.varyPitch;
             if (settings.enableSound !== undefined) enableSound = settings.enableSound;
             if (settings.earTrainingMode !== undefined) earTrainingMode = settings.earTrainingMode;
+            if (settings.submitKey !== undefined) submitKey = settings.submitKey;
 
             // Restore UI elements
             const masteryInput = document.getElementById('mastery-threshold-input');
@@ -660,6 +669,7 @@ function loadSettings() {
             const varyPitchCheckbox = document.getElementById('vary-pitch-checkbox');
             const enableSoundCheckbox = document.getElementById('enable-sound-checkbox');
             const earTrainingCheckbox = document.getElementById('ear-training-checkbox');
+            const submitKeyInput = document.getElementById('submit-key-input');
 
             if (masteryInput) masteryInput.value = settings.masteryThreshold ?? 2;
             if (minAttemptsInput) minAttemptsInput.value = settings.minAttemptsForMastery ?? 5;
@@ -676,6 +686,7 @@ function loadSettings() {
             if (varyPitchCheckbox) varyPitchCheckbox.checked = settings.varyPitch ?? true;
             if (enableSoundCheckbox) enableSoundCheckbox.checked = settings.enableSound ?? true;
             if (earTrainingCheckbox) earTrainingCheckbox.checked = settings.earTrainingMode ?? false;
+            if (submitKeyInput) submitKeyInput.value = settings.submitKey ?? '`';
 
             return true;
         } catch (e) {
@@ -705,7 +716,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'release-time-input',
         'vary-pitch-checkbox',
         'enable-sound-checkbox',
-        'ear-training-checkbox'
+        'ear-training-checkbox',
+        'submit-key-input'
     ];
 
     settingsInputs.forEach(id => {
@@ -1143,6 +1155,25 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
+    // Submit key - check answer
+    if (key === submitKey.toLowerCase()) {
+        e.preventDefault();
+        if (currentComposition.length === 0) return;
+
+        // Check if correct
+        if (checkAnswer()) {
+            handleCorrectAnswer();
+        } else {
+            // Wrong answer
+            const product = multiplyFractions(currentComposition);
+            feedbackEl.textContent = `Wrong! You entered ${product.num}/${product.denom}, target is ${currentInterval.num}/${currentInterval.denom}`;
+            feedbackEl.className = 'feedback incorrect';
+            feedbackEl.style.background = '#f8d7da';
+            feedbackEl.style.color = '#721c24';
+        }
+        return;
+    }
+
     // Check if key is mapped
     if (allMappings[key]) {
         e.preventDefault();
@@ -1150,11 +1181,6 @@ document.addEventListener('keydown', (e) => {
         // Add to composition
         currentComposition.push(allMappings[key]);
         updateCompositionDisplay();
-
-        // Check if correct
-        if (checkAnswer()) {
-            handleCorrectAnswer();
-        }
     }
 });
 
