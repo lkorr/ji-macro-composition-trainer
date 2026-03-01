@@ -988,6 +988,27 @@ function loadSettings() {
     return false;
 }
 
+// Helper functions to get current settings values
+function getCurrentMasteryThreshold() {
+    const input = document.getElementById('chord-mastery-threshold-input');
+    return input ? parseFloat(input.value) : masteryThreshold;
+}
+
+function getCurrentMinAttemptsForMastery() {
+    const input = document.getElementById('chord-min-attempts-input');
+    return input ? parseInt(input.value) : minAttemptsForMastery;
+}
+
+function getCurrentRollingAverageWindow() {
+    const input = document.getElementById('chord-rolling-average-window-input');
+    return input ? parseInt(input.value) : rollingAverageWindow;
+}
+
+function getCurrentNonMasteredRate() {
+    const input = document.getElementById('chord-non-mastered-rate-input');
+    return input ? parseInt(input.value) : nonMasteredRate;
+}
+
 // Load settings on page load
 loadSettings();
 
@@ -1601,7 +1622,8 @@ function handleChordKeypress(e, key) {
                         chordStats[currentChord].totalTime += timeTaken;
                         chordStats[currentChord].recentTimes.push(timeTaken);
                         // Keep only the configured number of recent attempts
-                        if (chordStats[currentChord].recentTimes.length > rollingAverageWindow) {
+                        const currentWindow = getCurrentRollingAverageWindow();
+                        if (chordStats[currentChord].recentTimes.length > currentWindow) {
                             chordStats[currentChord].recentTimes.shift();
                         }
                     }
@@ -2666,16 +2688,23 @@ function updateGameChordProgress() {
     // Build stats HTML
     let html = '';
 
+    // Get current settings
+    const currentMasteryThreshold = getCurrentMasteryThreshold();
+    const currentMinAttempts = getCurrentMinAttemptsForMastery();
+    const currentWindow = getCurrentRollingAverageWindow();
+
     for (const chord of activeChords) {
         const stats = chordStats[chord.key];
 
         if (!stats) continue;
 
-        const avgRecent = stats.recentTimes.length > 0
-            ? (stats.recentTimes.reduce((a, b) => a + b, 0) / stats.recentTimes.length).toFixed(2)
+        // Calculate average using only the most recent N attempts (rolling window)
+        const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
+        const avgRecent = recentTimesWindow.length > 0
+            ? (recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length).toFixed(2)
             : 'N/A';
 
-        const isMastered = stats.attempts >= minAttemptsForMastery && avgRecent !== 'N/A' && parseFloat(avgRecent) < masteryThreshold;
+        const isMastered = stats.attempts >= currentMinAttempts && avgRecent !== 'N/A' && parseFloat(avgRecent) < currentMasteryThreshold;
 
         const classes = ['game-stat-item'];
         if (isMastered) classes.push('mastered');
@@ -2984,6 +3013,11 @@ function selectWeightedRandomChord() {
     const chordWeights = [];
     let totalWeight = 0;
 
+    // Get current settings
+    const currentMasteryThreshold = getCurrentMasteryThreshold();
+    const currentNonMasteredRate = getCurrentNonMasteredRate();
+    const currentWindow = getCurrentRollingAverageWindow();
+
     let masteredCount = 0;
     let nonMasteredCount = 0;
 
@@ -2996,8 +3030,8 @@ function selectWeightedRandomChord() {
         }
     }
 
-    const masteredBaseWeight = nonMasteredCount > 0 ? (100 - nonMasteredRate) / masteredCount : 1;
-    const nonMasteredBaseWeight = nonMasteredCount > 0 ? nonMasteredRate / nonMasteredCount : 1;
+    const masteredBaseWeight = nonMasteredCount > 0 ? (100 - currentNonMasteredRate) / masteredCount : 1;
+    const nonMasteredBaseWeight = nonMasteredCount > 0 ? currentNonMasteredRate / nonMasteredCount : 1;
 
     for (const chord of activeChords) {
         const stats = chordStats[chord.key];
@@ -3006,8 +3040,10 @@ function selectWeightedRandomChord() {
         if (stats && stats.mastered) {
             weight = masteredBaseWeight;
         } else if (stats && stats.recentTimes.length > 0) {
-            const avgTime = stats.recentTimes.reduce((a, b) => a + b, 0) / stats.recentTimes.length;
-            weight = nonMasteredBaseWeight * (1 + avgTime / masteryThreshold);
+            // Calculate average using only the most recent N attempts (rolling window)
+            const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
+            const avgTime = recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length;
+            weight = nonMasteredBaseWeight * (1 + avgTime / currentMasteryThreshold);
         } else {
             weight = nonMasteredBaseWeight;
         }
@@ -3103,17 +3139,24 @@ function nextAdaptiveChordQuestion() {
 
 // Check and unlock next chord
 function checkAndUnlockNextChord() {
+    // Get current settings
+    const currentMasteryThreshold = getCurrentMasteryThreshold();
+    const currentMinAttempts = getCurrentMinAttemptsForMastery();
+    const currentWindow = getCurrentRollingAverageWindow();
+
     // Check if all active chords are mastered
     let allMastered = true;
     for (const chord of activeChords) {
         const stats = chordStats[chord.key];
         if (!stats) continue;
 
-        const avgRecent = stats.recentTimes.length > 0
-            ? stats.recentTimes.reduce((a, b) => a + b, 0) / stats.recentTimes.length
+        // Calculate average using only the most recent N attempts (rolling window)
+        const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
+        const avgRecent = recentTimesWindow.length > 0
+            ? recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length
             : 999;
 
-        const isMastered = stats.attempts >= minAttemptsForMastery && avgRecent < masteryThreshold;
+        const isMastered = stats.attempts >= currentMinAttempts && avgRecent < currentMasteryThreshold;
         stats.mastered = isMastered;
 
         if (!isMastered) {
@@ -3184,15 +3227,22 @@ function updateAdaptiveChordStats() {
 
     let html = `<div class="stats-grid">`;
 
+    // Get current settings
+    const currentMasteryThreshold = getCurrentMasteryThreshold();
+    const currentMinAttempts = getCurrentMinAttemptsForMastery();
+    const currentWindow = getCurrentRollingAverageWindow();
+
     for (const chord of activeChords) {
         const stats = chordStats[chord.key];
         if (!stats) continue;
 
-        const avgRecent = stats.recentTimes.length > 0
-            ? (stats.recentTimes.reduce((a, b) => a + b, 0) / stats.recentTimes.length).toFixed(2)
+        // Calculate average using only the most recent N attempts (rolling window)
+        const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
+        const avgRecent = recentTimesWindow.length > 0
+            ? (recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length).toFixed(2)
             : 'N/A';
 
-        const isMastered = stats.attempts >= minAttemptsForMastery && avgRecent !== 'N/A' && parseFloat(avgRecent) < masteryThreshold;
+        const isMastered = stats.attempts >= currentMinAttempts && avgRecent !== 'N/A' && parseFloat(avgRecent) < currentMasteryThreshold;
 
         html += `
             <div class="stat-item ${isMastered ? 'mastered' : ''}">
@@ -3536,11 +3586,15 @@ function resetGridGame() {
 function placeNewTarget() {
     gridTargetStartTime = Date.now();
 
-    // Place target at random position (not on player)
+    // Place target at random position (different from player)
+    let newRow, newCol;
     do {
-        targetRow = Math.floor(Math.random() * gridSize);
-        targetCol = Math.floor(Math.random() * gridSize);
-    } while (targetRow === playerRow && targetCol === playerCol);
+        newRow = Math.floor(Math.random() * gridSize);
+        newCol = Math.floor(Math.random() * gridSize);
+    } while (newRow === playerRow && newCol === playerCol);
+
+    targetRow = newRow;
+    targetCol = newCol;
 }
 
 function movePlayer(dRow, dCol) {
@@ -3553,17 +3607,34 @@ function movePlayer(dRow, dCol) {
     if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
         playerRow = newRow;
         playerCol = newCol;
+        renderGrid();
+    }
+}
 
-        // Check if reached target
-        if (playerRow === targetRow && playerCol === targetCol) {
-            const targetTime = (Date.now() - gridTargetStartTime) / 1000;
-            gridTotalTime += targetTime;
-            gridScore++;
-            updateGridStats();
-            placeNewTarget();
-            playFeedbackSound('correct');
-        }
+function captureTarget() {
+    if (!gridGameActive) return;
 
+    // Check if player is on target
+    if (playerRow === targetRow && playerCol === targetCol) {
+        const targetTime = (Date.now() - gridTargetStartTime) / 1000;
+        gridTotalTime += targetTime;
+        gridScore++;
+        updateGridStats();
+
+        // Place new target at different location
+        let newRow, newCol;
+        do {
+            newRow = Math.floor(Math.random() * gridSize);
+            newCol = Math.floor(Math.random() * gridSize);
+        } while (newRow === playerRow && newCol === playerCol);
+
+        targetRow = newRow;
+        targetCol = newCol;
+        gridTargetStartTime = Date.now();
+
+        playFeedbackSound('correct');
+
+        // Force re-render
         renderGrid();
     }
 }
@@ -3626,23 +3697,27 @@ function handleGridKeyPress(event) {
 
     const key = event.key.toLowerCase();
 
-    // Vim-style movement: h (left), j (down), k (up), l (right)
+    // ASDF movement: a=left, s=up, d=down, f=right
     switch (key) {
-        case 'h':
+        case 'a':
             event.preventDefault();
             movePlayer(0, -1);
             break;
-        case 'j':
-            event.preventDefault();
-            movePlayer(1, 0);
-            break;
-        case 'k':
+        case 's':
             event.preventDefault();
             movePlayer(-1, 0);
             break;
-        case 'l':
+        case 'd':
+            event.preventDefault();
+            movePlayer(1, 0);
+            break;
+        case 'f':
             event.preventDefault();
             movePlayer(0, 1);
+            break;
+        case 'tab':
+            event.preventDefault();
+            captureTarget();
             break;
     }
 }
