@@ -1123,11 +1123,24 @@ function checkAnswer() {
     return product.num === currentInterval.num && product.denom === currentInterval.denom;
 }
 
+// Arrow key mappings
+const arrowKeyMappings = {
+    'arrowleft': 's',
+    'arrowright': 'd',
+    'arrowup': 'a',
+    'arrowdown': 'f'
+};
+
 // Handle keypress
 document.addEventListener('keydown', (e) => {
     if (!gameActive) return;
 
-    const key = e.key.toLowerCase();
+    let key = e.key.toLowerCase();
+
+    // Map arrow keys to s, d, a, f
+    if (arrowKeyMappings[key]) {
+        key = arrowKeyMappings[key];
+    }
 
     // Handle chord mode separately
     if (gameMode === 'chord') {
@@ -1160,6 +1173,11 @@ document.addEventListener('keydown', (e) => {
 
 // Handle chord mode keypress
 function handleChordKeypress(e, key) {
+    // Map arrow keys to s, d, a, f
+    if (arrowKeyMappings[key]) {
+        key = arrowKeyMappings[key];
+    }
+
     // Backspace - clear current interval
     if (key === 'backspace') {
         e.preventDefault();
