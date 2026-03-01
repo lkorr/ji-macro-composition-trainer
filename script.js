@@ -259,7 +259,7 @@ function formatIntervalDisplay(num, denom) {
 const BASE_CHORD_TYPES = {
     '4:5:6': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }],            // Major
     '10:12:15': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }],         // Minor
-    '5:6:7': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 7, denom: 5 }],            // Diminished
+    '5:6:7': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 36, denom: 25 }],          // Diminished
     '16:20:25': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 25, denom: 16 }],       // Augmented
     '6:8:9': [{ num: 1, denom: 1 }, { num: 4, denom: 3 }, { num: 3, denom: 2 }],            // Sus4
     '8:9:12': [{ num: 1, denom: 1 }, { num: 9, denom: 8 }, { num: 3, denom: 2 }],           // Sus2
@@ -966,10 +966,10 @@ function loadSettings() {
             const chordRollingWindowInput = document.getElementById('chord-rolling-average-window-input');
             const chordNonMasteredRateInput = document.getElementById('chord-non-mastered-rate-input');
 
-            if (chordMasteryInput) chordMasteryInput.value = settings.masteryThreshold ?? 3.5;
+            if (chordMasteryInput) chordMasteryInput.value = settings.masteryThreshold ?? 5;
             if (chordMinAttemptsInput) chordMinAttemptsInput.value = settings.minAttemptsForMastery ?? 5;
-            if (chordRollingWindowInput) chordRollingWindowInput.value = settings.rollingAverageWindow ?? 5;
-            if (chordNonMasteredRateInput) chordNonMasteredRateInput.value = settings.nonMasteredRate ?? 70;
+            if (chordRollingWindowInput) chordRollingWindowInput.value = settings.rollingAverageWindow ?? 3;
+            if (chordNonMasteredRateInput) chordNonMasteredRateInput.value = settings.nonMasteredRate ?? 80;
 
             return true;
         } catch (e) {
@@ -2912,10 +2912,10 @@ function startAdaptiveChordGame() {
     const rollingWindowInput = document.getElementById('chord-rolling-average-window-input');
     const nonMasteredRateInput = document.getElementById('chord-non-mastered-rate-input');
 
-    masteryThreshold = masteryInput ? parseFloat(masteryInput.value) : 3.5;
+    masteryThreshold = masteryInput ? parseFloat(masteryInput.value) : 5;
     minAttemptsForMastery = minAttemptsInput ? parseInt(minAttemptsInput.value) : 5;
-    rollingAverageWindow = rollingWindowInput ? parseInt(rollingWindowInput.value) : 5;
-    nonMasteredRate = nonMasteredRateInput ? parseInt(nonMasteredRateInput.value) : 70;
+    rollingAverageWindow = rollingWindowInput ? parseInt(rollingWindowInput.value) : 3;
+    nonMasteredRate = nonMasteredRateInput ? parseInt(nonMasteredRateInput.value) : 80;
 
     // Read sound settings from global interval mode settings (chord mode uses same sound settings)
     const synthTypeSelect = document.getElementById('synth-type-select');
