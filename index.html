@@ -13,121 +13,113 @@
     <div class="container">
         <h1>JI Composition Trainer</h1>
 
+        <!-- Main Menu Panel -->
+        <div id="main-menu-panel" class="panel">
+            <h2>Select Training Mode</h2>
+            <div class="menu-options">
+                <button id="select-interval-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
+                    📊 Adaptive Interval Mode
+                </button>
+                <button id="select-chord-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
+                    🎵 Adaptive Chord Mode
+                </button>
+                <button id="select-grid-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
+                    🎯 Grid Movement Training
+                </button>
+            </div>
+        </div>
 
-        <!-- Chord Mode Panel -->
-        <div id="chord-mode-panel" class="panel" style="display: none;">
-            <h2>Chord Mode</h2>
-            <button id="back-to-adaptive-from-chord-btn" class="btn-secondary">← Back to Adaptive Mode</button>
+        <!-- Adaptive Chord Mode Panel -->
+        <div id="adaptive-chord-mode-panel" class="panel" style="display: none;">
+            <div class="panel-header">
+                <h2>Adaptive Progressive Chord Mode</h2>
+                <button id="back-to-main-from-chord-btn" class="btn-secondary">← Back to Main Menu</button>
+            </div>
 
-            <div class="chord-levels-grid">
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 1</h3>
-                    <button class="chord-level-card" data-chord-level="1">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">1</span>
-                            <span class="chord-level-desc">Major & Minor (20 questions)</span>
-                        </div>
-                    </button>
+            <div class="adaptive-settings">
+                <h3>Settings</h3>
+                <div class="setting-row">
+                    <label>
+                        Mastery Time Threshold:
+                        <input type="number" id="chord-mastery-threshold-input" min="0.5" max="10" step="0.5" value="3" class="small-number-input"> seconds
+                    </label>
                 </div>
-
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 2</h3>
-                    <button class="chord-level-card" data-chord-level="2">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">2</span>
-                            <span class="chord-level-desc">Diminished & Augmented (20 questions)</span>
-                        </div>
-                    </button>
+                <div class="setting-row">
+                    <label>
+                        Minimum Attempts Before Mastery:
+                        <input type="number" id="chord-min-attempts-input" min="3" max="20" value="5" class="small-number-input"> attempts
+                    </label>
                 </div>
-
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 3</h3>
-                    <button class="chord-level-card" data-chord-level="3">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">3</span>
-                            <span class="chord-level-desc">All Basic Triads (40 questions)</span>
-                        </div>
-                    </button>
+                <div class="setting-row">
+                    <label>
+                        Rolling Average Window:
+                        <input type="number" id="chord-rolling-average-window-input" min="3" max="20" value="10" class="small-number-input"> recent attempts
+                    </label>
                 </div>
-
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 4</h3>
-                    <button class="chord-level-card" data-chord-level="4">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">4</span>
-                            <span class="chord-level-desc">Sus4 & Sus2 (20 questions)</span>
-                        </div>
-                    </button>
+                <div class="setting-row">
+                    <label>
+                        Non-Mastered Question Rate:
+                        <input type="number" id="chord-non-mastered-rate-input" min="10" max="90" step="5" value="60" class="small-number-input">%
+                    </label>
                 </div>
+            </div>
 
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 5</h3>
-                    <button class="chord-level-card" data-chord-level="5">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">5</span>
-                            <span class="chord-level-desc">All Triads (60 questions)</span>
-                        </div>
-                    </button>
+            <div class="adaptive-settings">
+                <h3>Sound Settings</h3>
+                <div class="setting-row">
+                    <label>
+                        Synth Type:
+                        <select id="chord-synth-type-select">
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="sine">Sine</option>
+                            <option value="square">Square</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </label>
                 </div>
+                <div class="setting-row">
+                    <label>
+                        Release Time:
+                        <input type="number" id="chord-release-time-input" min="1" max="6" step="0.5" value="2" class="small-number-input"> seconds
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="chord-vary-pitch-checkbox" checked>
+                        Vary starting pitch (-500¢ to +1200¢)
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="chord-enable-sound-checkbox" checked>
+                        Enable sound
+                    </label>
+                </div>
+            </div>
 
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 6</h3>
-                    <button class="chord-level-card" data-chord-level="6">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">6</span>
-                            <span class="chord-level-desc">Dominant, Major & Minor 7th (30 questions)</span>
-                        </div>
-                    </button>
+            <div class="adaptive-progress">
+                <div class="adaptive-level-display">
+                    <h3>Current Level: <span id="adaptive-chord-level-number">1</span></h3>
+                    <p class="level-description">Unlock new chords (including inversions) by mastering current ones!</p>
                 </div>
+                <h3>Progress</h3>
+                <div id="adaptive-chord-stats" class="adaptive-stats">
+                    <p>Click "Start/Continue" to begin!</p>
+                </div>
+            </div>
 
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 7</h3>
-                    <button class="chord-level-card" data-chord-level="7">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">7</span>
-                            <span class="chord-level-desc">Harmonic & Subminor 7th (20 questions)</span>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 8</h3>
-                    <button class="chord-level-card" data-chord-level="8">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">8</span>
-                            <span class="chord-level-desc">All 7th Chords (50 questions)</span>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 9</h3>
-                    <button class="chord-level-card" data-chord-level="9">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">9</span>
-                            <span class="chord-level-desc">Major & Minor 6th (20 questions)</span>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="chord-level-pair">
-                    <h3 class="pair-title">Level 10</h3>
-                    <button class="chord-level-card" data-chord-level="10">
-                        <div class="chord-level-info">
-                            <span class="chord-level-num">10</span>
-                            <span class="chord-level-desc">All Chords (90 questions)</span>
-                        </div>
-                    </button>
-                </div>
+            <div class="adaptive-actions">
+                <button id="start-adaptive-chord-btn" class="btn-primary large-btn">Start / Continue</button>
+                <button id="reset-adaptive-chord-btn" class="btn-secondary">Reset Progress</button>
             </div>
         </div>
 
         <!-- Adaptive Mode Panel -->
-        <div id="adaptive-mode-panel" class="panel">
+        <div id="adaptive-mode-panel" class="panel" style="display: none;">
             <div class="panel-header">
-                <h2>Adaptive Progressive Mode</h2>
+                <h2>Adaptive Progressive Mode (Intervals)</h2>
                 <div class="header-buttons">
-                    <button id="chord-mode-btn">Chord Mode</button>
+                    <button id="back-to-main-from-interval-btn" class="btn-secondary">← Back to Main Menu</button>
                     <button id="mapping-config-btn">Configure Mappings</button>
                     <button id="help-btn" class="help-btn" title="Help">?</button>
                 </div>
@@ -346,6 +338,52 @@
             </div>
         </div>
 
+        <!-- Grid Movement Game Panel -->
+        <div id="grid-mode-panel" class="panel" style="display: none;">
+            <div class="panel-header">
+                <h2>Grid Movement Training</h2>
+                <button id="back-to-main-from-grid-btn" class="btn-secondary">← Back to Main Menu</button>
+            </div>
+
+            <div class="adaptive-settings">
+                <h3>Settings</h3>
+                <div class="setting-row">
+                    <label>
+                        Grid Size:
+                        <input type="number" id="grid-size-input" min="5" max="20" value="10" class="small-number-input"> × <span id="grid-size-display">10</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="score-display">
+                <div class="score-item">
+                    <span class="score-label">Timer:</span>
+                    <span id="grid-timer">0:00.00</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Targets Hit:</span>
+                    <span id="grid-score">0</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Avg Time:</span>
+                    <span id="grid-avg-time">0.00s</span>
+                </div>
+            </div>
+
+            <div id="grid-container" class="grid-container"></div>
+
+            <div class="grid-controls-info">
+                <h3>Controls</h3>
+                <p><strong>h</strong> = left, <strong>j</strong> = down, <strong>k</strong> = up, <strong>l</strong> = right</p>
+                <p>Navigate to the <strong style="color: #e74c3c;">●</strong> target!</p>
+            </div>
+
+            <div class="adaptive-actions">
+                <button id="start-grid-btn" class="btn-primary large-btn">Start Game</button>
+                <button id="reset-grid-btn" class="btn-secondary">Reset</button>
+            </div>
+        </div>
+
         <!-- Game Panel -->
         <div id="game-panel" class="panel" style="display: none;">
             <div class="game-panel-header">
@@ -353,7 +391,6 @@
                     Level <span id="game-level-number">1</span>
                 </div>
                 <div class="header-buttons">
-                    <button id="pause-btn" class="btn-secondary">⏸️ Pause</button>
                     <button id="settings-btn" class="btn-secondary">⚙️ Settings</button>
                     <button id="help-btn-game" class="help-btn" title="Help">?</button>
                 </div>
@@ -394,6 +431,9 @@
                 <div class="interval-label">Target Interval:</div>
                 <div id="target-interval" class="interval-value">3/2</div>
             </div>
+
+            <!-- Piano Roll Visualization (for chord mode) -->
+            <div id="chord-piano-roll" class="piano-roll-container"></div>
 
             <!-- Current Composition Display -->
             <div class="composition-display">
