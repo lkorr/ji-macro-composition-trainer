@@ -2713,11 +2713,14 @@ function updateGameChordProgress() {
         const classes = ['game-stat-item'];
         if (isMastered) classes.push('mastered');
 
+        // Format chord intervals for display
+        const intervalsDisplay = chord.intervals.map(i => `${i.num}/${i.denom}`).join(', ');
+
         html += `
             <div class="${classes.join(' ')}">
                 <div class="game-stat-interval">${chord.name}</div>
                 <div class="game-stat-details">
-                    <span class="game-stat-cents">${chord.key}</span>
+                    <span class="game-stat-cents">${intervalsDisplay}</span>
                 </div>
                 <div class="game-stat-info">
                     <span>Attempts: ${stats.attempts}</span>
@@ -2732,11 +2735,12 @@ function updateGameChordProgress() {
     if (currentNewChord) {
         const newChord = allChordsSorted.find(c => c.key === currentNewChord);
         if (newChord) {
+            const newChordIntervalsDisplay = newChord.intervals.map(i => `${i.num}/${i.denom}`).join(', ');
             html += `
                 <div class="game-stat-item drilling">
                     <div class="game-stat-interval">${newChord.name}</div>
                     <div class="game-stat-details">
-                        <span class="game-stat-cents">${newChord.key}</span>
+                        <span class="game-stat-cents">${newChordIntervalsDisplay}</span>
                     </div>
                     <div class="game-stat-info">
                         <span class="game-stat-badge drilling">Drilling: ${newChordDrillCount}/${newChordDrillTarget}</span>
