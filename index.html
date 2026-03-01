@@ -41,7 +41,7 @@
                 <div class="setting-row">
                     <label>
                         Mastery Time Threshold:
-                        <input type="number" id="chord-mastery-threshold-input" min="0.5" max="10" step="0.5" value="3" class="small-number-input"> seconds
+                        <input type="number" id="chord-mastery-threshold-input" min="0.5" max="10" step="0.5" value="3.5" class="small-number-input"> seconds
                     </label>
                 </div>
                 <div class="setting-row">
@@ -53,46 +53,13 @@
                 <div class="setting-row">
                     <label>
                         Rolling Average Window:
-                        <input type="number" id="chord-rolling-average-window-input" min="3" max="20" value="10" class="small-number-input"> recent attempts
+                        <input type="number" id="chord-rolling-average-window-input" min="3" max="20" value="5" class="small-number-input"> recent attempts
                     </label>
                 </div>
                 <div class="setting-row">
                     <label>
                         Non-Mastered Question Rate:
-                        <input type="number" id="chord-non-mastered-rate-input" min="10" max="90" step="5" value="60" class="small-number-input">%
-                    </label>
-                </div>
-            </div>
-
-            <div class="adaptive-settings">
-                <h3>Sound Settings</h3>
-                <div class="setting-row">
-                    <label>
-                        Synth Type:
-                        <select id="chord-synth-type-select">
-                            <option value="sawtooth">Sawtooth</option>
-                            <option value="sine">Sine</option>
-                            <option value="square">Square</option>
-                            <option value="triangle">Triangle</option>
-                        </select>
-                    </label>
-                </div>
-                <div class="setting-row">
-                    <label>
-                        Release Time:
-                        <input type="number" id="chord-release-time-input" min="1" max="6" step="0.5" value="2" class="small-number-input"> seconds
-                    </label>
-                </div>
-                <div class="setting-row">
-                    <label>
-                        <input type="checkbox" id="chord-vary-pitch-checkbox" checked>
-                        Vary starting pitch (-500¢ to +1200¢)
-                    </label>
-                </div>
-                <div class="setting-row">
-                    <label>
-                        <input type="checkbox" id="chord-enable-sound-checkbox" checked>
-                        Enable sound
+                        <input type="number" id="chord-non-mastered-rate-input" min="10" max="90" step="5" value="70" class="small-number-input">%
                     </label>
                 </div>
             </div>

@@ -960,24 +960,16 @@ function loadSettings() {
             if (earTrainingCheckbox) earTrainingCheckbox.checked = settings.earTrainingMode ?? false;
             if (submitKeyInput) submitKeyInput.value = settings.submitKey ?? '`';
 
-            // Restore chord-specific UI elements (copy same values)
+            // Restore chord-specific UI elements
             const chordMasteryInput = document.getElementById('chord-mastery-threshold-input');
             const chordMinAttemptsInput = document.getElementById('chord-min-attempts-input');
             const chordRollingWindowInput = document.getElementById('chord-rolling-average-window-input');
             const chordNonMasteredRateInput = document.getElementById('chord-non-mastered-rate-input');
-            const chordSynthTypeSelect = document.getElementById('chord-synth-type-select');
-            const chordReleaseTimeInput = document.getElementById('chord-release-time-input');
-            const chordVaryPitchCheckbox = document.getElementById('chord-vary-pitch-checkbox');
-            const chordEnableSoundCheckbox = document.getElementById('chord-enable-sound-checkbox');
 
-            if (chordMasteryInput) chordMasteryInput.value = settings.masteryThreshold ?? 3;
+            if (chordMasteryInput) chordMasteryInput.value = settings.masteryThreshold ?? 3.5;
             if (chordMinAttemptsInput) chordMinAttemptsInput.value = settings.minAttemptsForMastery ?? 5;
-            if (chordRollingWindowInput) chordRollingWindowInput.value = settings.rollingAverageWindow ?? 10;
-            if (chordNonMasteredRateInput) chordNonMasteredRateInput.value = settings.nonMasteredRate ?? 60;
-            if (chordSynthTypeSelect) chordSynthTypeSelect.value = settings.synthType ?? 'sawtooth';
-            if (chordReleaseTimeInput) chordReleaseTimeInput.value = settings.releaseTime ?? 2;
-            if (chordVaryPitchCheckbox) chordVaryPitchCheckbox.checked = settings.varyPitch ?? true;
-            if (chordEnableSoundCheckbox) chordEnableSoundCheckbox.checked = settings.enableSound ?? true;
+            if (chordRollingWindowInput) chordRollingWindowInput.value = settings.rollingAverageWindow ?? 5;
+            if (chordNonMasteredRateInput) chordNonMasteredRateInput.value = settings.nonMasteredRate ?? 70;
 
             return true;
         } catch (e) {
@@ -1034,11 +1026,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'chord-mastery-threshold-input',
         'chord-min-attempts-input',
         'chord-rolling-average-window-input',
-        'chord-non-mastered-rate-input',
-        'chord-synth-type-select',
-        'chord-release-time-input',
-        'chord-vary-pitch-checkbox',
-        'chord-enable-sound-checkbox'
+        'chord-non-mastered-rate-input'
     ];
 
     settingsInputs.forEach(id => {
@@ -2923,17 +2911,18 @@ function startAdaptiveChordGame() {
     const minAttemptsInput = document.getElementById('chord-min-attempts-input');
     const rollingWindowInput = document.getElementById('chord-rolling-average-window-input');
     const nonMasteredRateInput = document.getElementById('chord-non-mastered-rate-input');
-    const synthTypeSelect = document.getElementById('chord-synth-type-select');
-    const releaseTimeInput = document.getElementById('chord-release-time-input');
-    const varyPitchCheckbox = document.getElementById('chord-vary-pitch-checkbox');
-    const enableSoundCheckbox = document.getElementById('chord-enable-sound-checkbox');
 
-    masteryThreshold = masteryInput ? parseFloat(masteryInput.value) : 3;
+    masteryThreshold = masteryInput ? parseFloat(masteryInput.value) : 3.5;
     minAttemptsForMastery = minAttemptsInput ? parseInt(minAttemptsInput.value) : 5;
-    rollingAverageWindow = rollingWindowInput ? parseInt(rollingWindowInput.value) : 10;
-    nonMasteredRate = nonMasteredRateInput ? parseInt(nonMasteredRateInput.value) : 60;
+    rollingAverageWindow = rollingWindowInput ? parseInt(rollingWindowInput.value) : 5;
+    nonMasteredRate = nonMasteredRateInput ? parseInt(nonMasteredRateInput.value) : 70;
 
-    // Read sound settings
+    // Read sound settings from global interval mode settings (chord mode uses same sound settings)
+    const synthTypeSelect = document.getElementById('synth-type-select');
+    const releaseTimeInput = document.getElementById('release-time-input');
+    const varyPitchCheckbox = document.getElementById('vary-pitch-checkbox');
+    const enableSoundCheckbox = document.getElementById('enable-sound-checkbox');
+
     if (synthTypeSelect) synthType = synthTypeSelect.value;
     if (releaseTimeInput) releaseTime = parseFloat(releaseTimeInput.value);
     if (varyPitchCheckbox) varyPitch = varyPitchCheckbox.checked;
