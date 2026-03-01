@@ -663,6 +663,22 @@ if (resetAdaptiveChordBtn) {
     resetAdaptiveChordBtn.addEventListener('click', resetAdaptiveChordProgress);
 }
 
+// Resume from specific chord level
+const chordResumeLevelBtn = document.getElementById('chord-resume-level-btn');
+if (chordResumeLevelBtn) {
+    chordResumeLevelBtn.addEventListener('click', () => {
+        const chordResumeLevelInput = document.getElementById('chord-resume-level-input');
+        if (chordResumeLevelInput) {
+            const targetLevel = parseInt(chordResumeLevelInput.value);
+            if (targetLevel >= 1) {
+                resumeFromChordLevel(targetLevel);
+            } else {
+                alert('Please enter a valid level number (1 or higher)');
+            }
+        }
+    });
+}
+
 const startAdaptiveBtn = document.getElementById('start-adaptive-btn');
 if (startAdaptiveBtn) {
     startAdaptiveBtn.addEventListener('click', () => {
@@ -2902,6 +2918,80 @@ function resetAdaptiveChordProgress() {
         updateAdaptiveChordLevelDisplay();
         alert('Chord progress reset! You can now start fresh.');
     }
+}
+
+// Resume from specific chord level
+function resumeFromChordLevel(targetLevel) {
+    if (targetLevel < 1) {
+        alert('Level must be 1 or higher');
+        return;
+    }
+
+    // Initialize sorted chords if not already done
+    if (allChordsSorted.length === 0) {
+        initializeChordsSorted();
+    }
+
+    let numChords = targetLevel;
+
+    if (numChords > allChordsSorted.length) {
+        alert(`Maximum level is ${allChordsSorted.length}. Setting to maximum.`);
+        numChords = allChordsSorted.length;
+    }
+
+    // Initialize stats for all chords
+    chordStats = {};
+    for (const chord of allChordsSorted) {
+        chordStats[chord.key] = {
+            attempts: 0,
+            totalTime: 0,
+            recentTimes: [],
+            mastered: false,
+            lastSeenQuestion: -1,
+            chord: chord
+        };
+    }
+
+    // Populate with the first numChords from allChordsSorted
+    activeChords = [];
+    for (let i = 0; i < Math.min(numChords, allChordsSorted.length); i++) {
+        const chord = allChordsSorted[i];
+        activeChords.push(chord);
+
+        const chordKey = chord.key;
+        if (chordStats[chordKey]) {
+            // Mark earlier ones as mastered, leave the last few unmastered
+            if (i < numChords - 2) {
+                chordStats[chordKey].mastered = true;
+                chordStats[chordKey].attempts = 10;
+                chordStats[chordKey].totalTime = 10;
+                chordStats[chordKey].recentTimes = [1, 1, 1, 1, 1];
+            } else {
+                // Leave as unmastered for recent chords
+                chordStats[chordKey].attempts = 3;
+                chordStats[chordKey].totalTime = 12;
+                chordStats[chordKey].recentTimes = [4, 4, 4];
+            }
+        }
+    }
+
+    // Reset drill tracking
+    newChordDrillCount = 0;
+    currentNewChord = null;
+    chordTutorialIndex = 9999; // Skip tutorial
+    chordTutorialActive = false;
+
+    // Set level to match number of active chords
+    adaptiveChordLevel = activeChords.length;
+
+    // Save to localStorage
+    saveAdaptiveChordProgress();
+
+    // Update UI
+    updateAdaptiveChordStats();
+    updateAdaptiveChordLevelDisplay();
+
+    alert(`Progress resumed! You now have ${numChords} chord${numChords !== 1 ? 's' : ''} unlocked.`);
 }
 
 // Start adaptive chord game
