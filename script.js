@@ -898,21 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// GCD function
-function gcd(a, b) {
-    while (b !== 0) {
-        let temp = b;
-        b = a % b;
-        a = temp;
-    }
-    return a;
-}
-
-// Reduce fraction to lowest terms
-function reduceFraction(num, denom) {
-    const g = gcd(num, denom);
-    return { num: num / g, denom: denom / g };
-}
+// Note: gcd() and reduceFraction() are defined in data/chordTypes.js
 
 // Octave reduce a fraction to [1/2, 2] range (includes reciprocals below 1/1)
 function octaveReduce(num, denom) {
