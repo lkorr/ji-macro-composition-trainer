@@ -25,14 +25,23 @@ if (backFromHotkeysBtn) {
     });
 }
 
-const cgCaptureKeyInput = document.getElementById('cg-capture-key-input');
-if (cgCaptureKeyInput) {
-    cgCaptureKeyInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            cgCaptureKeyInput.value = 'Tab';
-        }
+const cgCaptureKeyBtn = document.getElementById('cg-capture-key-btn');
+if (cgCaptureKeyBtn) {
+    let captureListening = false;
+    cgCaptureKeyBtn.addEventListener('click', () => {
+        captureListening = true;
+        cgCaptureKeyBtn.textContent = 'Press a key...';
+        cgCaptureKeyBtn.classList.add('listening');
     });
+    document.addEventListener('keydown', (e) => {
+        if (!captureListening) return;
+        e.preventDefault();
+        captureListening = false;
+        cgCaptureKeyBtn.classList.remove('listening');
+        const label = e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key : e.key;
+        cgCaptureKey = e.key === ' ' ? ' ' : e.key.toLowerCase();
+        cgCaptureKeyBtn.textContent = label;
+    }, true); // useCapture to intercept before game handlers
 }
 
 const saveHotkeysBtn = document.getElementById('save-hotkeys-btn');

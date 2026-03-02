@@ -116,12 +116,12 @@ function renderHotkeysPanel() {
     const upInput = document.getElementById('cg-move-up-input');
     const downInput = document.getElementById('cg-move-down-input');
     const rightInput = document.getElementById('cg-move-right-input');
-    const captureInput = document.getElementById('cg-capture-key-input');
+    const captureBtn = document.getElementById('cg-capture-key-btn');
     if (leftInput) leftInput.value = cgMoveLeft;
     if (upInput) upInput.value = cgMoveUp;
     if (downInput) downInput.value = cgMoveDown;
     if (rightInput) rightInput.value = cgMoveRight;
-    if (captureInput) captureInput.value = cgCaptureKey === 'tab' ? 'Tab' : cgCaptureKey;
+    if (captureBtn) captureBtn.textContent = cgCaptureKey === 'tab' ? 'Tab' : cgCaptureKey;
 }
 
 function saveHotkeysPanel() {
@@ -148,15 +148,11 @@ function saveHotkeysPanel() {
     const upInput = document.getElementById('cg-move-up-input');
     const downInput = document.getElementById('cg-move-down-input');
     const rightInput = document.getElementById('cg-move-right-input');
-    const captureInput = document.getElementById('cg-capture-key-input');
     if (leftInput && leftInput.value.length === 1) cgMoveLeft = leftInput.value.toLowerCase();
     if (upInput && upInput.value.length === 1) cgMoveUp = upInput.value.toLowerCase();
     if (downInput && downInput.value.length === 1) cgMoveDown = downInput.value.toLowerCase();
     if (rightInput && rightInput.value.length === 1) cgMoveRight = rightInput.value.toLowerCase();
-    if (captureInput) {
-        const v = captureInput.value.trim().toLowerCase();
-        if (v === 'tab' || v.length === 1) cgCaptureKey = v;
-    }
+    // cgCaptureKey is set live by the key-capture button in init.js
 
     saveSettings();
 }
@@ -169,6 +165,9 @@ function resetHotkeysPanel() {
     cgMoveLeft = 'a'; cgMoveUp = 's'; cgMoveDown = 'd'; cgMoveRight = 'f';
     cgCaptureKey = 'tab';
     renderHotkeysPanel();
+    // Also reset the capture button's listening state
+    const captureBtn = document.getElementById('cg-capture-key-btn');
+    if (captureBtn) captureBtn.classList.remove('listening');
     saveSettings();
 }
 
