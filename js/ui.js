@@ -580,7 +580,7 @@ function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowVal
 }
 
 // Grid rendering
-function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetLabel) {
+function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetPianoRoll) {
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = '';
@@ -596,9 +596,9 @@ function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetLabel) 
                 cell.textContent = '◆';
             } else if (row === tRow && col === tCol) {
                 cell.classList.add('target-cell');
-                if (targetLabel) {
-                    cell.textContent = targetLabel;
-                    cell.classList.add('target-cell-labeled');
+                if (targetPianoRoll) {
+                    cell.classList.add('target-cell-piano');
+                    cell.innerHTML = buildTargetCellSVG(targetPianoRoll);
                 } else {
                     cell.textContent = '●';
                 }
@@ -609,6 +609,59 @@ function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetLabel) 
     }
 
     container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+}
+
+// Build an inline SVG for the target cell showing chord name + piano roll
+function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue }) {
+    if (!intervals || intervals.length === 0) return label || '●';
+
+    const positions = intervals.map(i => Math.log2(i.num / i.denom));
+    const minPos = Math.min(...positions);
+    const maxPos = Math.max(...positions);
+    const padding = 0.3;
+    const paddedMin = minPos - padding;
+    const paddedMax = maxPos + padding;
+    const totalRange = paddedMax - paddedMin;
+
+    // Fixed viewBox coords — SVG scales to fill the cell via CSS
+    const vbW = 60;
+    const labelH = 18;
+    const rollH = 80;
+    const vbH = labelH + rollH;
+    const arrowW = 12;
+    const noteX = arrowW + 2;
+    const noteW = vbW - noteX - 2;
+    const barH = 5;
+
+    const enteredSet = enteredIntervals ? new Set(enteredIntervals.map(i => `${i.num}/${i.denom}`)) : new Set();
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">`;
+
+    // Chord name
+    if (label) {
+        svg += `<text x="${vbW / 2}" y="${labelH - 3}" text-anchor="middle" font-size="7" font-weight="bold" fill="white" font-family="sans-serif">${label}</text>`;
+    }
+
+    // Piano roll bars
+    intervals.forEach((interval, idx) => {
+        const pos = positions[idx];
+        const norm = (pos - paddedMin) / totalRange;
+        const y = labelH + rollH - (norm * rollH) - barH / 2;
+        const isEntered = enteredSet.has(`${interval.num}/${interval.denom}`);
+        const fill = isEntered ? '#4caf50' : 'rgba(255,255,255,0.5)';
+        svg += `<rect x="${noteX}" y="${y}" width="${noteW}" height="${barH}" fill="${fill}" rx="1"/>`;
+    });
+
+    // Arrow
+    if (arrowValue) {
+        const pos = Math.log2(arrowValue.num / arrowValue.denom);
+        const norm = (pos - paddedMin) / totalRange;
+        const ay = labelH + rollH - (norm * rollH);
+        svg += `<path d="M ${arrowW} ${ay} L 2 ${ay - 4} L 2 ${ay + 4} Z" fill="#4caf50"/>`;
+    }
+
+    svg += '</svg>';
+    return svg;
 }
 
 // ===== CHORD GROUPING HELPERS =====

@@ -429,7 +429,7 @@ function handleChordGridChordKeypress(event, key) {
         feedbackEl: cgFeedbackEl,
         intervalSpansSelector: '#chord-grid-chord-intervals .chord-interval',
         onUpdateComposition: () => updateChordGridCompositionDisplay(),
-        onUpdatePianoRoll: () => renderChordGridPianoRoll(),
+        onUpdatePianoRoll: () => { renderChordGridPianoRoll(); renderChordGrid(); },
         onChordComplete: (targetTime) => {
             // Use chordGridTargetStartTime for CG mode timing (includes grid phase)
             const totalTargetTime = (Date.now() - chordGridTargetStartTime) / 1000;
@@ -532,8 +532,13 @@ function handleChordGridChordKeypress(event, key) {
 // Render functions
 function renderChordGrid() {
     const entry = cgAllChordsSorted.find(c => c.key === cgCurrentChord);
-    const label = entry ? entry.name : null;
-    renderGridInto('chord-grid-container', chordGridSize, chordGridPlayerRow, chordGridPlayerCol, chordGridTargetRow, chordGridTargetCol, label);
+    const targetPianoRoll = entry ? {
+        label: entry.name,
+        intervals: cgCurrentExpectedIntervals,
+        enteredIntervals: chordGridPhase === 'chord' ? cgChordProgress : null,
+        arrowValue: chordGridPhase === 'chord' ? multiplyFractions(cgCurrentComposition) : { num: 1, denom: 1 }
+    } : null;
+    renderGridInto('chord-grid-container', chordGridSize, chordGridPlayerRow, chordGridPlayerCol, chordGridTargetRow, chordGridTargetCol, targetPianoRoll);
 }
 
 function renderChordGridPianoRoll() {
