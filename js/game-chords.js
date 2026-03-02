@@ -423,15 +423,12 @@ function nextAdaptiveChordQuestion() {
         <div class="chord-intervals">${intervalsHTML}</div>
     `;
 
-    // Reset composition and auto-place 1/1 as the first note
-    currentComposition = [{ num: 1, denom: 1 }];
-    chordProgress = [{ num: 1, denom: 1 }];
+    // Reset composition — player must enter all intervals including 1/1
+    currentComposition = [];
+    chordProgress = [];
     updateCompositionDisplay();
 
-    // Mark 1/1 as already entered in the UI
-    markIntervalCorrect('1/1');
-
-    // Render piano roll visualization with 1/1 already placed
+    // Render piano roll with nothing placed yet
     renderChordPianoRoll(harmonicNotation, chordProgress, { num: 1, denom: 1 });
 
     // Clear feedback
@@ -585,15 +582,14 @@ function handleChordKeypressGeneric(opts) {
     const expectedIntervals = opts.getExpectedIntervals();
     const fb = opts.feedbackEl;
 
-    // Backspace - reset chord (keep 1/1 auto-placed)
+    // Backspace - reset chord
     if (key === 'backspace') {
         event.preventDefault();
-        opts.setComposition([{ num: 1, denom: 1 }]);
-        opts.setProgress([{ num: 1, denom: 1 }]);
+        opts.setComposition([]);
+        opts.setProgress([]);
         opts.onUpdateComposition();
         opts.onUpdatePianoRoll();
         resetIntervalHighlightsInContainer(opts.intervalSpansSelector);
-        markIntervalCorrectInContainer('1/1', opts.intervalSpansSelector);
         clearFeedback(fb);
         return;
     }
@@ -619,7 +615,7 @@ function handleChordKeypressGeneric(opts) {
             playSingleTone(product.num, product.denom);
 
             // Reset composition for next interval
-            opts.setComposition([{ num: 1, denom: 1 }]);
+            opts.setComposition([]);
             opts.onUpdateComposition();
             opts.onUpdatePianoRoll();
 
@@ -632,12 +628,11 @@ function handleChordKeypressGeneric(opts) {
             // WRONG interval
             playSingleTone(product.num, product.denom);
 
-            opts.setComposition([{ num: 1, denom: 1 }]);
-            opts.setProgress([{ num: 1, denom: 1 }]);
+            opts.setComposition([]);
+            opts.setProgress([]);
             opts.onUpdateComposition();
             opts.onUpdatePianoRoll();
             resetIntervalHighlightsInContainer(opts.intervalSpansSelector);
-            markIntervalCorrectInContainer('1/1', opts.intervalSpansSelector);
 
             opts.onWrongAnswer(expectedSet, alreadyEnteredSet);
         }

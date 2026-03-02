@@ -374,16 +374,14 @@ function setChordGridPhase(phase) {
         if (controlsInfo) controlsInfo.style.display = 'none';
         if (chordLabel) chordLabel.textContent = 'Build this chord:';
 
-        // Reset chord state for building (auto-place 1/1)
-        cgChordProgress = [{ num: 1, denom: 1 }];
-        cgCurrentComposition = [{ num: 1, denom: 1 }];
+        // Reset chord state — player must enter all intervals including 1/1
+        cgChordProgress = [];
+        cgCurrentComposition = [];
         updateChordGridCompositionDisplay();
         renderChordGridPianoRoll();
-        playSingleTone(1, 1);
 
-        // Reset interval highlights, then mark 1/1 as placed
+        // Reset all interval highlights
         resetIntervalHighlightsInContainer('#chord-grid-chord-intervals .chord-interval');
-        markIntervalCorrectInContainer('1/1', '#chord-grid-chord-intervals .chord-interval');
     }
 }
 
