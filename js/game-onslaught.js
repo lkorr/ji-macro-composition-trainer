@@ -1,323 +1,369 @@
 // ============================================================
-// ONSLAUGHT MODE
+// ONSLAUGHT MODE — Grid + multiple simultaneous timed targets
 // ============================================================
 
-// Each card: { id, chordKey, name, expectedIntervals, progress, composition, spawnTime, expiryTime, timeoutId, animFrameId }
-let onslaughtCards = [];
-let onslaughtFocusedCardId = null;
-let onslaughtScore = 0;
 let onslaughtActive = false;
+let onslaughtPhase = 'grid'; // 'grid' or 'chord'
+let onslaughtScore = 0;
 let onslaughtStartTime = null;
 let onslaughtTimerInterval = null;
 let onslaughtSpawnTimeout = null;
-let onslaughtFadeTime = 15; // seconds per card
-let onslaughtSpawnInterval = 10; // seconds between spawns (decreases over time)
-let onslaughtCardIdCounter = 0;
 let onslaughtAnimFrame = null;
+let onslaughtFadeTime = 15;       // seconds before a target expires
+let onslaughtSpawnInterval = 10;  // starting seconds between spawns
+let onslaughtTargetIdCounter = 0;
+
+// Player position (shared with grid)
+let onslaughtPlayerRow = 0;
+let onslaughtPlayerCol = 0;
+let onslaughtGridSize = 5;
+
+// All live targets: { id, row, col, chordKey, name, expectedIntervals,
+//                     spawnTime, expiryTime, timeoutId,
+//                     progress, composition }
+let onslaughtTargets = [];
+
+// The target currently being entered in chord phase
+let onslaughtActiveTargetId = null;
 
 // ===== HELPERS =====
 
-function getOnslaughtChordPool() {
-    // Use CG active chords (same adaptive pool as chord+grid)
-    return cgActiveChords.length > 0 ? cgActiveChords : cgAllChordsSorted.slice(0, 1);
-}
-
-function pickOnslaughtChord() {
-    const pool = getOnslaughtChordPool();
-    if (!pool.length) return null;
-    return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function currentSpawnInterval() {
+function currentOnslaughtSpawnDelay() {
     if (!onslaughtStartTime) return onslaughtSpawnInterval * 1000;
     const elapsed = (Date.now() - onslaughtStartTime) / 1000;
-    // Halve the interval every 60 seconds, minimum 3 seconds
-    const factor = Math.pow(0.5, elapsed / 60);
-    return Math.max(3000, onslaughtSpawnInterval * 1000 * factor);
+    // Halve interval every 60s, floor at 3s
+    return Math.max(3000, onslaughtSpawnInterval * 1000 * Math.pow(0.5, elapsed / 60));
 }
 
-// ===== CARD DOM =====
-
-function buildCardHTML(card) {
-    const intervalsHTML = card.expectedIntervals.map(i =>
-        `<span class="chord-interval onslaught-interval" data-interval="${i.num}/${i.denom}">${i.num}/${i.denom}</span>`
-    ).join(', ');
-
-    const pianoRollHTML = buildOnslaughtPianoRoll(card);
-
-    return `
-        <div class="onslaught-card" id="ocard-${card.id}" data-card-id="${card.id}">
-            <div class="onslaught-card-header">
-                <span class="onslaught-chord-name">${card.name}</span>
-                <div class="onslaught-timer-bar-wrap">
-                    <div class="onslaught-timer-bar" id="obar-${card.id}"></div>
-                </div>
-            </div>
-            <div class="onslaught-card-body">
-                <div class="onslaught-piano-roll" id="oproll-${card.id}">${pianoRollHTML}</div>
-                <div class="onslaught-intervals" id="oints-${card.id}">${intervalsHTML}</div>
-                <div class="onslaught-composition" id="ocomp-${card.id}">Press keys to build interval...</div>
-            </div>
-        </div>
-    `;
+function onslaughtOccupied(row, col) {
+    if (row === onslaughtPlayerRow && col === onslaughtPlayerCol) return true;
+    return onslaughtTargets.some(t => t.row === row && t.col === col);
 }
 
-function buildOnslaughtPianoRoll(card) {
-    const intervals = card.expectedIntervals;
-    if (!intervals || intervals.length === 0) return '';
-
-    const positions = intervals.map(i => Math.log2(i.num / i.denom));
-    const minPos = Math.min(...positions);
-    const maxPos = Math.max(...positions);
-    const padding = 0.25;
-    const paddedMin = minPos - padding;
-    const paddedMax = maxPos + padding;
-    const totalRange = paddedMax - paddedMin;
-
-    const pixelsPerOctave = 80;
-    const height = Math.max(40, totalRange * pixelsPerOctave);
-    const arrowWidth = 25;
-    const noteWidth = 80;
-    const barHeight = 10;
-    const width = arrowWidth + noteWidth + 5;
-
-    const enteredSet = new Set(card.progress.map(i => `${i.num}/${i.denom}`));
-    const arrowValue = multiplyFractions(card.composition);
-
-    let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
-
-    intervals.forEach((interval, idx) => {
-        const pos = positions[idx];
-        const norm = (pos - paddedMin) / totalRange;
-        const y = height - (norm * height) - barHeight / 2;
-        const isEntered = enteredSet.has(`${interval.num}/${interval.denom}`);
-        const color = isEntered ? '#4caf50' : '#999';
-        svg += `<rect x="${arrowWidth}" y="${y}" width="${noteWidth}" height="${barHeight}" fill="${color}" stroke="#000" stroke-width="1" rx="2"/>`;
-    });
-
-    if (arrowValue) {
-        const pos = Math.log2(arrowValue.num / arrowValue.denom);
-        const norm = (pos - paddedMin) / totalRange;
-        const ay = height - (norm * height);
-        svg += `<path d="M ${arrowWidth - 5} ${ay} L 5 ${ay - 6} L 5 ${ay + 6} Z" fill="#4caf50"/>`;
-    }
-
-    svg += '</svg>';
-    return svg;
+function onslaughtRandomFreeCell() {
+    const cells = [];
+    for (let r = 0; r < onslaughtGridSize; r++)
+        for (let c = 0; c < onslaughtGridSize; c++)
+            if (!onslaughtOccupied(r, c)) cells.push([r, c]);
+    if (!cells.length) return null;
+    return cells[Math.floor(Math.random() * cells.length)];
 }
 
 // ===== SPAWN / EXPIRE =====
 
-function spawnOnslaughtCard() {
+function spawnOnslaughtTarget() {
     if (!onslaughtActive) return;
 
-    const entry = pickOnslaughtChord();
-    if (!entry) return;
+    const pool = cgActiveChords.length > 0 ? cgActiveChords : cgAllChordsSorted.slice(0, 1);
+    const entry = pool[Math.floor(Math.random() * pool.length)];
+    if (!entry) { scheduleOnslaughtSpawn(); return; }
 
-    const id = ++onslaughtCardIdCounter;
+    const cell = onslaughtRandomFreeCell();
+    if (!cell) { scheduleOnslaughtSpawn(); return; }
+
+    const id = ++onslaughtTargetIdCounter;
     const now = Date.now();
     const expiryMs = onslaughtFadeTime * 1000;
 
-    const card = {
+    const target = {
         id,
+        row: cell[0], col: cell[1],
         chordKey: entry.key,
         name: entry.name,
         expectedIntervals: entry.expectedIntervals,
-        progress: [],
-        composition: [],
         spawnTime: now,
         expiryTime: now + expiryMs,
-        timeoutId: setTimeout(() => expireOnslaughtCard(id), expiryMs)
+        timeoutId: setTimeout(() => expireOnslaughtTarget(id), expiryMs),
+        progress: [],
+        composition: []
     };
 
-    onslaughtCards.push(card);
-
-    const container = document.getElementById('onslaught-cards-container');
-    if (container) {
-        const div = document.createElement('div');
-        div.innerHTML = buildCardHTML(card);
-        container.appendChild(div.firstElementChild);
-
-        // Click to focus
-        document.getElementById(`ocard-${id}`).addEventListener('click', () => focusOnslaughtCard(id));
-    }
-
-    // Auto-focus if nothing focused
-    if (!onslaughtFocusedCardId) focusOnslaughtCard(id);
-
-    scheduleNextSpawn();
+    onslaughtTargets.push(target);
+    renderOnslaughtGrid();
+    scheduleOnslaughtSpawn();
 }
 
-function scheduleNextSpawn() {
+function scheduleOnslaughtSpawn() {
     clearTimeout(onslaughtSpawnTimeout);
-    const delay = currentSpawnInterval();
-    onslaughtSpawnTimeout = setTimeout(spawnOnslaughtCard, delay);
+    onslaughtSpawnTimeout = setTimeout(spawnOnslaughtTarget, currentOnslaughtSpawnDelay());
 }
 
-function expireOnslaughtCard(id) {
-    const idx = onslaughtCards.findIndex(c => c.id === id);
+function expireOnslaughtTarget(id) {
+    const idx = onslaughtTargets.findIndex(t => t.id === id);
     if (idx === -1) return;
-    onslaughtCards.splice(idx, 1);
 
-    const el = document.getElementById(`ocard-${id}`);
-    if (el) {
-        el.classList.add('onslaught-card-expired');
-        setTimeout(() => el.remove(), 400);
+    // If we're in chord phase for this target, abort back to grid
+    if (onslaughtPhase === 'chord' && onslaughtActiveTargetId === id) {
+        onslaughtActiveTargetId = null;
+        setOnslaughtPhase('grid');
     }
 
+    onslaughtTargets.splice(idx, 1);
     onslaughtScore = Math.max(0, onslaughtScore - 1);
-    updateOnslaughtScore();
+    updateOnslaughtScoreDisplay();
+    renderOnslaughtGrid();
+}
 
-    if (onslaughtFocusedCardId === id) {
-        onslaughtFocusedCardId = null;
-        if (onslaughtCards.length > 0) focusOnslaughtCard(onslaughtCards[onslaughtCards.length - 1].id);
+function removeOnslaughtTarget(id) {
+    const t = onslaughtTargets.find(t => t.id === id);
+    if (t) clearTimeout(t.timeoutId);
+    onslaughtTargets = onslaughtTargets.filter(t => t.id !== id);
+}
+
+// ===== GRID RENDERING =====
+
+function renderOnslaughtGrid() {
+    const container = document.getElementById('onslaught-grid-container');
+    if (!container) return;
+    container.innerHTML = '';
+    container.tabIndex = 0;
+
+    const now = Date.now();
+
+    for (let row = 0; row < onslaughtGridSize; row++) {
+        for (let col = 0; col < onslaughtGridSize; col++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+
+            if (row === onslaughtPlayerRow && col === onslaughtPlayerCol) {
+                cell.classList.add('player-cell');
+                cell.textContent = '◆';
+            } else {
+                const target = onslaughtTargets.find(t => t.row === row && t.col === col);
+                if (target) {
+                    const remaining = Math.max(0, target.expiryTime - now);
+                    const frac = remaining / (onslaughtFadeTime * 1000);
+                    // Fade from red toward dark as time runs out
+                    const lightness = Math.round(30 + frac * 20);
+                    const hue = Math.round(frac * 120); // green → red
+                    cell.classList.add('target-cell');
+                    cell.style.background = `hsl(${hue}, 70%, ${lightness}%)`;
+                    cell.style.boxShadow = `0 0 10px hsl(${hue}, 70%, ${lightness}%)`;
+                    cell.classList.add('target-cell-piano');
+
+                    const isActive = onslaughtPhase === 'chord' && onslaughtActiveTargetId === target.id;
+                    const pianoRoll = {
+                        label: target.name,
+                        intervals: target.expectedIntervals,
+                        enteredIntervals: isActive ? target.progress : null,
+                        arrowValue: isActive ? multiplyFractions(target.composition) : { num: 1, denom: 1 }
+                    };
+                    cell.innerHTML = buildTargetCellSVG(pianoRoll);
+                }
+            }
+
+            container.appendChild(cell);
+        }
+    }
+
+    container.style.gridTemplateColumns = `repeat(${onslaughtGridSize}, 1fr)`;
+}
+
+// Animate countdown colours on targets
+function animateOnslaughtGrid() {
+    if (!onslaughtActive) return;
+    renderOnslaughtGrid();
+    onslaughtAnimFrame = requestAnimationFrame(animateOnslaughtGrid);
+}
+
+// ===== MOVEMENT / CAPTURE =====
+
+function moveOnslaughtPlayer(dRow, dCol) {
+    if (!onslaughtActive || onslaughtPhase !== 'grid') return;
+    const nr = onslaughtPlayerRow + dRow;
+    const nc = onslaughtPlayerCol + dCol;
+    if (nr >= 0 && nr < onslaughtGridSize && nc >= 0 && nc < onslaughtGridSize) {
+        onslaughtPlayerRow = nr;
+        onslaughtPlayerCol = nc;
+        renderOnslaughtGrid();
     }
 }
 
-function removeOnslaughtCard(id) {
-    clearTimeout(onslaughtCards.find(c => c.id === id)?.timeoutId);
-    const idx = onslaughtCards.findIndex(c => c.id === id);
-    if (idx !== -1) onslaughtCards.splice(idx, 1);
+function captureOnslaughtTarget() {
+    if (!onslaughtActive || onslaughtPhase !== 'grid') return;
+    const target = onslaughtTargets.find(
+        t => t.row === onslaughtPlayerRow && t.col === onslaughtPlayerCol
+    );
+    if (!target) return;
 
-    const el = document.getElementById(`ocard-${id}`);
-    if (el) {
-        el.classList.add('onslaught-card-complete');
-        setTimeout(() => el.remove(), 500);
-    }
+    onslaughtActiveTargetId = target.id;
+    target.progress = [];
+    target.composition = [];
+    setOnslaughtPhase('chord');
+}
 
-    if (onslaughtFocusedCardId === id) {
-        onslaughtFocusedCardId = null;
-        if (onslaughtCards.length > 0) focusOnslaughtCard(onslaughtCards[onslaughtCards.length - 1].id);
+// ===== CHORD PHASE =====
+
+function setOnslaughtPhase(phase) {
+    onslaughtPhase = phase;
+
+    const phaseIndicator = document.getElementById('onslaught-phase-indicator');
+    const gridContainer = document.getElementById('onslaught-grid-container');
+    const pianoRoll = document.getElementById('onslaught-piano-roll');
+    const keyboardLegend = document.getElementById('onslaught-keyboard-legend');
+    const compositionDisplay = document.getElementById('onslaught-composition-display');
+    const controlsInfo = document.getElementById('onslaught-controls-info');
+    const chordDisplay = document.getElementById('onslaught-chord-display');
+
+    if (phase === 'grid') {
+        if (phaseIndicator) {
+            phaseIndicator.className = 'chord-grid-phase-indicator grid-phase';
+            phaseIndicator.textContent = 'Grid Phase - Navigate to a target';
+        }
+        if (gridContainer) gridContainer.classList.remove('chord-phase-dimmed');
+        if (pianoRoll) pianoRoll.style.display = 'none';
+        if (keyboardLegend) keyboardLegend.style.display = 'none';
+        if (compositionDisplay) compositionDisplay.style.display = 'none';
+        if (controlsInfo) controlsInfo.style.display = 'block';
+        if (chordDisplay) chordDisplay.style.display = 'none';
+    } else {
+        const target = onslaughtTargets.find(t => t.id === onslaughtActiveTargetId);
+        if (!target) return;
+
+        if (phaseIndicator) {
+            phaseIndicator.className = 'chord-grid-phase-indicator chord-phase';
+            phaseIndicator.textContent = 'Chord Phase - Build the chord!';
+        }
+        if (gridContainer) gridContainer.classList.add('chord-phase-dimmed');
+        if (keyboardLegend) keyboardLegend.style.display = 'block';
+        if (compositionDisplay) compositionDisplay.style.display = 'flex';
+        if (controlsInfo) controlsInfo.style.display = 'none';
+        if (chordDisplay) chordDisplay.style.display = 'block';
+
+        // Populate chord display
+        updateOnslaughtChordDisplay(target);
+        resetIntervalHighlightsInContainer('#onslaught-chord-intervals .chord-interval');
+
+        // Show piano roll
+        if (pianoRoll) pianoRoll.style.display = 'flex';
+        renderOnslaughtPianoRoll(target);
+        renderOnslaughtGrid();
     }
 }
 
-// ===== FOCUS =====
+function updateOnslaughtChordDisplay(target) {
+    const nameEl = document.getElementById('onslaught-chord-name');
+    const notationEl = document.getElementById('onslaught-chord-notation');
+    const intervalsEl = document.getElementById('onslaught-chord-intervals');
 
-function focusOnslaughtCard(id) {
-    // Unfocus previous
-    if (onslaughtFocusedCardId !== null) {
-        const prev = document.getElementById(`ocard-${onslaughtFocusedCardId}`);
-        if (prev) prev.classList.remove('onslaught-card-focused');
+    if (nameEl) nameEl.textContent = target.name;
+    const entry = cgAllChordsSorted.find(c => c.key === target.chordKey);
+    if (notationEl) notationEl.textContent = entry ? entry.chordKey : target.chordKey;
+    if (intervalsEl) {
+        intervalsEl.innerHTML = target.expectedIntervals.map(i =>
+            `<span class="chord-interval" data-interval="${i.num}/${i.denom}">${i.num}/${i.denom}</span>`
+        ).join(', ');
     }
-    onslaughtFocusedCardId = id;
-    const el = document.getElementById(`ocard-${id}`);
-    if (el) el.classList.add('onslaught-card-focused');
+}
+
+function renderOnslaughtPianoRoll(target) {
+    renderPianoRollSVG({
+        containerId: 'onslaught-piano-roll',
+        intervals: target.expectedIntervals,
+        enteredIntervals: target.progress,
+        arrowValue: multiplyFractions(target.composition)
+    });
+}
+
+function updateOnslaughtCompositionDisplay(target) {
+    const el = document.getElementById('onslaught-composition');
+    if (!el) return;
+    if (target.composition.length === 0) {
+        el.textContent = 'Press keys to build interval...';
+        el.style.color = '#999';
+    } else {
+        const product = multiplyFractions(target.composition);
+        if (target.composition.length === 1) {
+            el.innerHTML = `<strong>${product.num}/${product.denom}</strong>`;
+        } else {
+            const parts = target.composition.map(c => `${c.num}/${c.denom}`).join(' × ');
+            el.innerHTML = `${parts} = <strong>${product.num}/${product.denom}</strong>`;
+        }
+        el.style.color = '#333';
+    }
 }
 
 // ===== KEYPRESS =====
 
 function handleOnslaughtKeyPress(event) {
+    if (!onslaughtActive) return;
     const key = event.key.toLowerCase();
-    if (!onslaughtFocusedCardId) return;
 
-    const card = onslaughtCards.find(c => c.id === onslaughtFocusedCardId);
-    if (!card) return;
+    if (onslaughtPhase === 'grid') {
+        if (event.key === 'Tab') event.preventDefault();
+        if (key === cgMoveLeft)        { event.preventDefault(); moveOnslaughtPlayer(0, -1); }
+        else if (key === cgMoveUp)     { event.preventDefault(); moveOnslaughtPlayer(-1, 0); }
+        else if (key === cgMoveDown)   { event.preventDefault(); moveOnslaughtPlayer(1, 0); }
+        else if (key === cgMoveRight)  { event.preventDefault(); moveOnslaughtPlayer(0, 1); }
+        else if (key === cgCaptureKey) { event.preventDefault(); captureOnslaughtTarget(); }
+    } else {
+        // Chord phase
+        const target = onslaughtTargets.find(t => t.id === onslaughtActiveTargetId);
+        if (!target) return;
 
-    // Backspace - reset this card
-    if (key === 'backspace') {
-        event.preventDefault();
-        card.composition = [];
-        card.progress = [];
-        updateOnslaughtCardUI(card);
-        return;
-    }
-
-    // Submit
-    if (key === submitKey.toLowerCase()) {
-        event.preventDefault();
-        const product = multiplyFractions(card.composition);
-        const intervalKey = `${product.num}/${product.denom}`;
-        const expectedSet = new Set(card.expectedIntervals.map(i => `${i.num}/${i.denom}`));
-        const alreadyEnteredSet = new Set(card.progress.map(i => `${i.num}/${i.denom}`));
-
-        if (expectedSet.has(intervalKey) && !alreadyEnteredSet.has(intervalKey)) {
-            card.progress.push(product);
-            playSingleTone(product.num, product.denom);
-            card.composition = [];
-            updateOnslaughtCardUI(card);
-
-            if (card.progress.length === card.expectedIntervals.length) {
-                onslaughtScore += 1;
-                updateOnslaughtScore();
-                removeOnslaughtCard(card.id);
-            }
-        } else {
-            // Wrong
-            playSingleTone(product.num, product.denom);
-            card.composition = [];
-            card.progress = [];
-            updateOnslaughtCardUI(card);
-            const el = document.getElementById(`ocard-${card.id}`);
-            if (el) {
-                el.classList.add('onslaught-card-wrong');
-                setTimeout(() => el.classList.remove('onslaught-card-wrong'), 400);
-            }
+        if (key === 'backspace') {
+            event.preventDefault();
+            target.composition = [];
+            target.progress = [];
+            resetIntervalHighlightsInContainer('#onslaught-chord-intervals .chord-interval');
+            updateOnslaughtCompositionDisplay(target);
+            renderOnslaughtPianoRoll(target);
+            renderOnslaughtGrid();
+            return;
         }
-        return;
-    }
 
-    // Add to composition
-    if (allMappings[key]) {
-        event.preventDefault();
-        card.composition.push(allMappings[key]);
-        updateOnslaughtCardUI(card);
-    }
-}
+        if (key === submitKey.toLowerCase()) {
+            event.preventDefault();
+            const product = multiplyFractions(target.composition);
+            const intervalKey = `${product.num}/${product.denom}`;
+            const expectedSet = new Set(target.expectedIntervals.map(i => `${i.num}/${i.denom}`));
+            const alreadyEntered = new Set(target.progress.map(i => `${i.num}/${i.denom}`));
 
-// ===== UI UPDATES =====
+            if (expectedSet.has(intervalKey) && !alreadyEntered.has(intervalKey)) {
+                target.progress.push(product);
+                playSingleTone(product.num, product.denom);
+                markIntervalCorrectInContainer(intervalKey, '#onslaught-chord-intervals .chord-interval');
+                target.composition = [];
+                updateOnslaughtCompositionDisplay(target);
+                renderOnslaughtPianoRoll(target);
+                renderOnslaughtGrid();
 
-function updateOnslaughtCardUI(card) {
-    // Update composition display
-    const compEl = document.getElementById(`ocomp-${card.id}`);
-    if (compEl) {
-        if (card.composition.length === 0) {
-            compEl.textContent = 'Press keys to build interval...';
-            compEl.style.color = '#999';
-        } else {
-            const product = multiplyFractions(card.composition);
-            if (card.composition.length === 1) {
-                compEl.innerHTML = `<strong>${product.num}/${product.denom}</strong>`;
+                if (target.progress.length === target.expectedIntervals.length) {
+                    // Chord complete
+                    onslaughtScore++;
+                    updateOnslaughtScoreDisplay();
+                    removeOnslaughtTarget(target.id);
+                    onslaughtActiveTargetId = null;
+                    setOnslaughtPhase('grid');
+                }
             } else {
-                const parts = card.composition.map(c => `${c.num}/${c.denom}`).join(' × ');
-                compEl.innerHTML = `${parts} = <strong>${product.num}/${product.denom}</strong>`;
+                // Wrong
+                playSingleTone(product.num, product.denom);
+                target.composition = [];
+                target.progress = [];
+                resetIntervalHighlightsInContainer('#onslaught-chord-intervals .chord-interval');
+                updateOnslaughtCompositionDisplay(target);
+                renderOnslaughtPianoRoll(target);
+                renderOnslaughtGrid();
             }
-            compEl.style.color = '#333';
+            return;
+        }
+
+        if (allMappings[key]) {
+            event.preventDefault();
+            target.composition.push(allMappings[key]);
+            updateOnslaughtCompositionDisplay(target);
+            renderOnslaughtPianoRoll(target);
+            renderOnslaughtGrid();
         }
     }
-
-    // Update interval highlights
-    const enteredSet = new Set(card.progress.map(i => `${i.num}/${i.denom}`));
-    const spans = document.querySelectorAll(`#oints-${card.id} .onslaught-interval`);
-    spans.forEach(span => {
-        const key = span.dataset.interval;
-        span.classList.toggle('interval-correct', enteredSet.has(key));
-    });
-
-    // Update piano roll
-    const rollEl = document.getElementById(`oproll-${card.id}`);
-    if (rollEl) rollEl.innerHTML = buildOnslaughtPianoRoll(card);
 }
 
-function updateOnslaughtScore() {
+// ===== HUD =====
+
+function updateOnslaughtScoreDisplay() {
     const el = document.getElementById('onslaught-score');
     if (el) el.textContent = onslaughtScore;
-}
-
-// Animate countdown bars
-function animateOnslaughtBars() {
-    if (!onslaughtActive) return;
-    const now = Date.now();
-    for (const card of onslaughtCards) {
-        const bar = document.getElementById(`obar-${card.id}`);
-        if (!bar) continue;
-        const remaining = Math.max(0, card.expiryTime - now);
-        const pct = (remaining / (onslaughtFadeTime * 1000)) * 100;
-        bar.style.width = `${pct}%`;
-        // Colour shifts red as time runs out
-        const hue = Math.round(pct * 1.2); // 120=green → 0=red
-        bar.style.background = `hsl(${hue}, 80%, 45%)`;
-    }
-    onslaughtAnimFrame = requestAnimationFrame(animateOnslaughtBars);
 }
 
 function updateOnslaughtTimer() {
@@ -329,47 +375,52 @@ function updateOnslaughtTimer() {
 // ===== START / END =====
 
 function startOnslaughtGame() {
-    if (cgActiveChords.length === 0) {
-        initializeCGAdaptiveMode();
-    }
+    if (cgActiveChords.length === 0) initializeCGAdaptiveMode();
 
-    onslaughtActive = true;
-    onslaughtCards = [];
-    onslaughtFocusedCardId = null;
-    onslaughtScore = 0;
-    onslaughtCardIdCounter = 0;
-    onslaughtStartTime = Date.now();
+    const sizeInput = document.getElementById('onslaught-grid-size-input');
+    if (sizeInput) onslaughtGridSize = parseInt(sizeInput.value) || 5;
 
-    // Read settings
     const fadeInput = document.getElementById('onslaught-fade-time-input');
     if (fadeInput) onslaughtFadeTime = parseFloat(fadeInput.value) || 15;
+
     const spawnInput = document.getElementById('onslaught-spawn-interval-input');
     if (spawnInput) onslaughtSpawnInterval = parseFloat(spawnInput.value) || 10;
 
-    const container = document.getElementById('onslaught-cards-container');
-    if (container) container.innerHTML = '';
+    onslaughtActive = true;
+    onslaughtPhase = 'grid';
+    onslaughtTargets = [];
+    onslaughtActiveTargetId = null;
+    onslaughtScore = 0;
+    onslaughtTargetIdCounter = 0;
+    onslaughtStartTime = Date.now();
 
-    updateOnslaughtScore();
+    onslaughtPlayerRow = Math.floor(onslaughtGridSize / 2);
+    onslaughtPlayerCol = Math.floor(onslaughtGridSize / 2);
 
     showPanel('onslaught-game-panel');
+    updateOnslaughtScoreDisplay();
+    setOnslaughtPhase('grid');
+    updateChordGridControlsDisplay(); // reuse same key label updater
 
-    // Spawn first card immediately, then schedule
-    spawnOnslaughtCard();
+    // Spawn first target immediately then schedule
+    spawnOnslaughtTarget();
 
     onslaughtTimerInterval = setInterval(updateOnslaughtTimer, 100);
-    onslaughtAnimFrame = requestAnimationFrame(animateOnslaughtBars);
+    onslaughtAnimFrame = requestAnimationFrame(animateOnslaughtGrid);
+
+    renderKeyboardLegendInto(document.getElementById('onslaught-legend-grid'));
+
+    const container = document.getElementById('onslaught-grid-container');
+    if (container) container.focus();
 }
 
 function endOnslaughtGame() {
     onslaughtActive = false;
-
     clearTimeout(onslaughtSpawnTimeout);
     clearInterval(onslaughtTimerInterval);
     if (onslaughtAnimFrame) cancelAnimationFrame(onslaughtAnimFrame);
-
-    for (const card of onslaughtCards) clearTimeout(card.timeoutId);
-    onslaughtCards = [];
-    onslaughtFocusedCardId = null;
-
+    for (const t of onslaughtTargets) clearTimeout(t.timeoutId);
+    onslaughtTargets = [];
+    onslaughtActiveTargetId = null;
     showPanel('onslaught-mode-panel');
 }

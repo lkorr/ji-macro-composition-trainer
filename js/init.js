@@ -117,8 +117,15 @@ const startOnslaughtBtn = document.getElementById('start-onslaught-btn');
 if (startOnslaughtBtn) {
     startOnslaughtBtn.addEventListener('click', () => {
         initAudio();
-        if (cgActiveChords.length === 0) initializeCGAdaptiveMode();
         startOnslaughtGame();
+    });
+}
+
+const onslaughtGridSizeInput = document.getElementById('onslaught-grid-size-input');
+const onslaughtGridSizeDisplay = document.getElementById('onslaught-grid-size-display');
+if (onslaughtGridSizeInput && onslaughtGridSizeDisplay) {
+    onslaughtGridSizeInput.addEventListener('input', () => {
+        onslaughtGridSizeDisplay.textContent = onslaughtGridSizeInput.value;
     });
 }
 
@@ -335,6 +342,7 @@ document.addEventListener('keydown', (event) => {
         handleOnslaughtKeyPress(event);
     }
 });
+
 
 // Chord-Grid event listeners
 const chordGridSizeInput = document.getElementById('chord-grid-size-input');

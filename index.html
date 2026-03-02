@@ -378,12 +378,17 @@
                 <h2>⚡ Onslaught Mode</h2>
                 <button id="back-to-main-from-onslaught-btn" class="btn-secondary">← Back to Main Menu</button>
             </div>
-            <p style="color:#666; margin-bottom: 16px;">Chords appear on screen and fade away. Solve them before they expire! Uses your Chords + Grid chord pool.</p>
+            <p style="color:#666; margin-bottom: 16px;">Multiple chord targets appear on the grid at once. Walk to one, capture it, enter the chord. Targets fade away if you take too long — solve them for points, lose points when they expire. Uses your Chords + Grid chord pool.</p>
 
             <div class="adaptive-settings">
                 <h3>Settings</h3>
                 <div class="setting-row">
-                    <label>Card Fade Time:
+                    <label>Grid Size:
+                        <input type="number" id="onslaught-grid-size-input" min="3" max="7" value="5" class="small-number-input"> × <span id="onslaught-grid-size-display">5</span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Target Fade Time:
                         <input type="number" id="onslaught-fade-time-input" min="5" max="120" step="1" value="15" class="small-number-input"> seconds
                     </label>
                 </div>
@@ -403,6 +408,9 @@
         <!-- Onslaught Game Panel -->
         <div id="onslaught-game-panel" class="panel" style="display: none;">
             <div class="game-panel-header">
+                <div id="onslaught-phase-indicator" class="chord-grid-phase-indicator grid-phase">
+                    Grid Phase - Navigate to a target
+                </div>
                 <div class="onslaught-hud">
                     <span class="score-label">Score: <strong id="onslaught-score">0</strong></span>
                     <span class="score-label">Time: <span id="onslaught-timer">0:00</span></span>
@@ -411,8 +419,40 @@
                     <button id="end-onslaught-btn" class="btn-secondary">End Game</button>
                 </div>
             </div>
-            <p class="onslaught-hint">Click a card to focus it, then type intervals. <strong>+1</strong> per chord solved, <strong>−1</strong> when a card expires.</p>
-            <div id="onslaught-cards-container" class="onslaught-cards-container"></div>
+
+            <!-- Chord display (chord phase only) -->
+            <div id="onslaught-chord-display" class="chord-grid-chord-display" style="display:none;">
+                <div class="chord-grid-chord-label">Build this chord:</div>
+                <div id="onslaught-chord-name" class="chord-grid-chord-name"></div>
+                <div id="onslaught-chord-notation" class="chord-harmonic-notation"></div>
+                <div id="onslaught-chord-intervals" class="chord-intervals"></div>
+                <div id="onslaught-piano-roll" class="piano-roll-container" style="display:none;"></div>
+            </div>
+
+            <!-- Grid -->
+            <div id="onslaught-grid-container" class="grid-container"></div>
+
+            <!-- Composition display (chord phase only) -->
+            <div id="onslaught-composition-display" class="composition-display" style="display:none;">
+                <div id="onslaught-composition" class="composition-value">Press keys to build interval...</div>
+            </div>
+
+            <!-- Feedback -->
+            <div id="onslaught-feedback" class="feedback"></div>
+
+            <!-- Controls info (grid phase) -->
+            <div id="onslaught-controls-info" class="grid-controls-info">
+                <h3>Controls</h3>
+                <p><strong id="og-key-left">a</strong> = left, <strong id="og-key-up">s</strong> = up, <strong id="og-key-down">d</strong> = down, <strong id="og-key-right">f</strong> = right</p>
+                <p><strong id="og-key-capture">Tab</strong> = capture target</p>
+                <p><strong>+1</strong> per chord solved &nbsp;·&nbsp; <strong>−1</strong> when a target expires</p>
+            </div>
+
+            <!-- Keyboard legend (chord phase) -->
+            <div id="onslaught-keyboard-legend" class="keyboard-legend" style="display:none;">
+                <h3>Keyboard Reference</h3>
+                <div class="legend-grid" id="onslaught-legend-grid"></div>
+            </div>
         </div>
 
         <!-- Chord + Grid Mode Settings Panel -->

@@ -609,10 +609,17 @@ function renderChordGridKeyboardLegend() {
 function updateChordGridControlsDisplay() {
     const captureLabel = cgCaptureKey === 'tab' ? 'Tab' : cgCaptureKey.toUpperCase();
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    // Chord+grid panel
     set('cg-key-left', cgMoveLeft);
     set('cg-key-up', cgMoveUp);
     set('cg-key-down', cgMoveDown);
     set('cg-key-right', cgMoveRight);
     set('cg-key-capture', captureLabel);
     set('cg-key-capture2', captureLabel);
+    // Onslaught panel
+    set('og-key-left', cgMoveLeft);
+    set('og-key-up', cgMoveUp);
+    set('og-key-down', cgMoveDown);
+    set('og-key-right', cgMoveRight);
+    set('og-key-capture', captureLabel);
 }
