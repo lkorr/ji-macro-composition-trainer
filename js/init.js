@@ -105,7 +105,10 @@ if (selectIntervalModeBtn) {
 
 const selectOnslaughtModeBtn = document.getElementById('select-onslaught-mode-btn');
 if (selectOnslaughtModeBtn) {
-    selectOnslaughtModeBtn.addEventListener('click', showOnslaughtMode);
+    selectOnslaughtModeBtn.addEventListener('click', () => {
+        renderOnslaughtLevelCards();
+        showOnslaughtMode();
+    });
 }
 
 const backToMainFromOnslaughtBtn = document.getElementById('back-to-main-from-onslaught-btn');
@@ -120,6 +123,23 @@ if (startOnslaughtBtn) {
         startOnslaughtGame();
     });
 }
+
+// Custom chord textarea live validation
+const onslaughtCustomTextarea = document.getElementById('onslaught-custom-chords-input');
+if (onslaughtCustomTextarea) {
+    onslaughtCustomTextarea.addEventListener('input', validateCustomChords);
+}
+
+const onslaughtClearPoolBtn = document.getElementById('onslaught-clear-pool-btn');
+if (onslaughtClearPoolBtn) {
+    onslaughtClearPoolBtn.addEventListener('click', () => {
+        const ta = document.getElementById('onslaught-custom-chords-input');
+        if (ta) { ta.value = ''; validateCustomChords(); }
+    });
+}
+
+// Initialize cards on load
+renderOnslaughtLevelCards();
 
 const onslaughtGridSizeInput = document.getElementById('onslaught-grid-size-input');
 const onslaughtGridSizeDisplay = document.getElementById('onslaught-grid-size-display');
@@ -458,7 +478,13 @@ document.addEventListener('DOMContentLoaded', () => {
         'cg-mastery-threshold-input',
         'cg-min-attempts-input',
         'cg-rolling-average-window-input',
-        'cg-non-mastered-rate-input'
+        'cg-non-mastered-rate-input',
+        'chord-grid-show-chord-info-checkbox',
+        'onslaught-random-start-checkbox',
+        'onslaught-mistake-expires-checkbox',
+        'onslaught-mistake-penalty-input',
+        'onslaught-expire-penalty-input',
+        'onslaught-show-chord-info-checkbox'
     ];
 
     settingsInputs.forEach(id => {

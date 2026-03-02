@@ -340,12 +340,16 @@ function captureChordGridTarget() {
 function setChordGridPhase(phase) {
     chordGridPhase = phase;
 
+    const showInfoCheckbox = document.getElementById('chord-grid-show-chord-info-checkbox');
+    const showChordInfo = !showInfoCheckbox || showInfoCheckbox.checked;
+
     const phaseIndicator = document.getElementById('chord-grid-phase-indicator');
     const gridContainer = document.getElementById('chord-grid-container');
     const pianoRoll = document.getElementById('chord-grid-piano-roll');
     const keyboardLegend = document.getElementById('chord-grid-keyboard-legend');
     const compositionDisplay = document.getElementById('chord-grid-composition-display');
     const controlsInfo = document.getElementById('chord-grid-controls-info');
+    const chordDisplay = document.getElementById('chord-grid-chord-display');
     const chordLabel = document.querySelector('.chord-grid-chord-label');
 
     if (phase === 'grid') {
@@ -354,21 +358,23 @@ function setChordGridPhase(phase) {
             phaseIndicator.textContent = 'Grid Phase - Navigate to target';
         }
         if (gridContainer) gridContainer.classList.remove('chord-phase-dimmed');
-        if (pianoRoll) pianoRoll.style.display = 'flex';
         if (keyboardLegend) keyboardLegend.style.display = 'none';
         if (compositionDisplay) compositionDisplay.style.display = 'none';
         if (controlsInfo) controlsInfo.style.display = 'block';
+        if (chordDisplay) chordDisplay.style.display = showChordInfo ? '' : 'none';
+        if (pianoRoll) pianoRoll.style.display = showChordInfo ? 'flex' : 'none';
         if (chordLabel) chordLabel.textContent = 'Upcoming Chord:';
 
         // Render piano roll as static preview (no arrow, all grey)
-        renderChordGridPianoRollPreview();
+        if (showChordInfo) renderChordGridPianoRollPreview();
     } else {
         if (phaseIndicator) {
             phaseIndicator.className = 'chord-grid-phase-indicator chord-phase';
             phaseIndicator.textContent = 'Chord Phase - Build the chord!';
         }
         if (gridContainer) gridContainer.classList.add('chord-phase-dimmed');
-        if (pianoRoll) pianoRoll.style.display = 'flex';
+        if (chordDisplay) chordDisplay.style.display = showChordInfo ? '' : 'none';
+        if (pianoRoll) pianoRoll.style.display = showChordInfo ? 'flex' : 'none';
         if (keyboardLegend) keyboardLegend.style.display = 'block';
         if (compositionDisplay) compositionDisplay.style.display = 'flex';
         if (controlsInfo) controlsInfo.style.display = 'none';
@@ -378,7 +384,7 @@ function setChordGridPhase(phase) {
         cgChordProgress = [];
         cgCurrentComposition = [];
         updateChordGridCompositionDisplay();
-        renderChordGridPianoRoll();
+        if (showChordInfo) renderChordGridPianoRoll();
 
         // Reset all interval highlights
         resetIntervalHighlightsInContainer('#chord-grid-chord-intervals .chord-interval');
@@ -538,7 +544,9 @@ function renderChordGrid() {
         enteredIntervals: chordGridPhase === 'chord' ? cgChordProgress : null,
         arrowValue: chordGridPhase === 'chord' ? multiplyFractions(cgCurrentComposition) : { num: 1, denom: 1 }
     } : null;
-    renderGridInto('chord-grid-container', chordGridSize, chordGridPlayerRow, chordGridPlayerCol, chordGridTargetRow, chordGridTargetCol, targetPianoRoll);
+    const dimRow = chordGridPhase === 'chord' ? chordGridTargetRow : undefined;
+    const dimCol = chordGridPhase === 'chord' ? chordGridTargetCol : undefined;
+    renderGridInto('chord-grid-container', chordGridSize, chordGridPlayerRow, chordGridPlayerCol, chordGridTargetRow, chordGridTargetCol, targetPianoRoll, dimRow, dimCol);
 }
 
 function renderChordGridPianoRoll() {

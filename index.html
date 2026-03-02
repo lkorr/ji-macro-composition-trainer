@@ -378,9 +378,32 @@
                 <h2>⚡ Onslaught Mode</h2>
                 <button id="back-to-main-from-onslaught-btn" class="btn-secondary">← Back to Main Menu</button>
             </div>
-            <p style="color:#666; margin-bottom: 16px;">Multiple chord targets appear on the grid at once. Walk to one, capture it, enter the chord. Targets fade away if you take too long — solve them for points, lose points when they expire. Uses your Chords + Grid chord pool.</p>
+            <p style="color:#666; margin-bottom: 16px;">Multiple chord targets appear on the grid at once. Walk to one, capture it, enter the chord. Targets fade away if you take too long — solve them for points, lose points when they expire. Each correct note lowers the spawn timer.</p>
 
-            <div class="adaptive-settings">
+            <!-- Level selector cards -->
+            <div class="onslaught-level-section">
+                <h3>Chord Pool</h3>
+                <p class="custom-editor-hint" style="margin-bottom:10px;">Click cards to add chords to the pool. Edit freely or write your own as <code>[1/1, 5/4, 3/2] : Name</code>.</p>
+                <div class="onslaught-level-cards" id="onslaught-level-cards"></div>
+
+                <div id="onslaught-custom-level-editor" class="onslaught-custom-editor">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:0.85em; color:#555;">Pool (one chord per line)</span>
+                        <button id="onslaught-clear-pool-btn" class="btn-secondary" style="padding:3px 12px; font-size:0.82em;">Clear</button>
+                    </div>
+                    <textarea id="onslaught-custom-chords-input" class="custom-chords-textarea" rows="7"
+                        placeholder="[1/1, 5/4, 3/2] : Major&#10;[1/1, 6/5, 3/2] : Minor&#10;[4, 5, 6, 7] : Harmonic 7th"></textarea>
+                    <div id="onslaught-custom-parse-status" class="custom-parse-status"></div>
+                </div>
+                <div class="setting-row" style="margin-top:10px;">
+                    <label>
+                        <input type="checkbox" id="onslaught-random-start-checkbox" checked>
+                        Center chord around random interval
+                    </label>
+                </div>
+            </div>
+
+            <div class="adaptive-settings" style="margin-top:20px;">
                 <h3>Settings</h3>
                 <div class="setting-row">
                     <label>Grid Size:
@@ -394,14 +417,36 @@
                 </div>
                 <div class="setting-row">
                     <label>Starting Spawn Interval:
-                        <input type="number" id="onslaught-spawn-interval-input" min="3" max="60" step="1" value="10" class="small-number-input"> seconds
-                        <span style="color:#888; font-size:0.85em; margin-left:8px;">(accelerates over time)</span>
+                        <input type="number" id="onslaught-spawn-interval-input" min="3" max="60" step="1" value="5" class="small-number-input"> seconds
+                        <span style="color:#888; font-size:0.85em; margin-left:8px;">(−0.1s per note / per fade)</span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="onslaught-mistake-expires-checkbox">
+                        Lose target on wrong answer
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Spawn penalty per mistake:
+                        <input type="number" id="onslaught-mistake-penalty-input" min="0" max="30" step="0.1" value="0.2" class="small-number-input"> s
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Spawn penalty per expiry:
+                        <input type="number" id="onslaught-expire-penalty-input" min="0" max="30" step="0.1" value="0.5" class="small-number-input"> s
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="onslaught-show-chord-info-checkbox" checked>
+                        Show chord info panel when capturing a target
                     </label>
                 </div>
             </div>
 
             <div class="adaptive-actions">
-                <button id="start-onslaught-btn" class="btn-primary large-btn">Start Onslaught</button>
+                <button id="start-onslaught-btn" class="btn-primary large-btn">⚡ Start Onslaught</button>
             </div>
         </div>
 
@@ -412,7 +457,9 @@
                     Grid Phase - Navigate to a target
                 </div>
                 <div class="onslaught-hud">
+                    <span class="score-label">Lvl: <strong id="onslaught-level-display">1</strong></span>
                     <span class="score-label">Score: <strong id="onslaught-score">0</strong></span>
+                    <span class="score-label onslaught-spawn-hud">Spawn: <strong id="onslaught-spawn-display">10.0s</strong></span>
                     <span class="score-label">Time: <span id="onslaught-timer">0:00</span></span>
                 </div>
                 <div class="header-buttons">
@@ -506,7 +553,13 @@
                 <div class="setting-row">
                     <label>
                         <input type="checkbox" id="chord-grid-random-start-checkbox">
-                        Random Starting Note (build chords from any position)
+                        Include 3rd/5th starting positions (build chords from root, 3rd, or 5th)
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="chord-grid-show-chord-info-checkbox" checked>
+                        Show chord info panel when capturing a target
                     </label>
                 </div>
             </div>

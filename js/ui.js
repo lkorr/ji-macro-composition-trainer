@@ -418,6 +418,13 @@ function renderKeyboardLegendInto(container) {
             container.appendChild(div);
         }
     }
+
+    // Submit key row
+    const submitLabel = submitKey === ' ' ? 'Space' : submitKey === '`' ? '`' : submitKey;
+    const submitDiv = document.createElement('div');
+    submitDiv.className = 'legend-item legend-submit-row';
+    submitDiv.innerHTML = `<span class="legend-key">${submitLabel}</span><span class="legend-ratio">Enter</span>`;
+    container.appendChild(submitDiv);
 }
 
 function renderKeyboardLegend() {
@@ -585,21 +592,24 @@ function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowVal
 }
 
 // Grid rendering
-function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetPianoRoll) {
+// dimmedActiveRow/Col: when set, all cells except that one get cell-dimmed class
+function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetPianoRoll, dimmedActiveRow, dimmedActiveCol) {
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = '';
     container.tabIndex = 0;
+
+    const hasDim = dimmedActiveRow !== undefined && dimmedActiveCol !== undefined;
 
     for (let row = 0; row < size; row++) {
         for (let col = 0; col < size; col++) {
             const cell = document.createElement('div');
             cell.className = 'grid-cell';
 
-            if (row === pRow && col === pCol) {
-                cell.classList.add('player-cell');
-                cell.textContent = '◆';
-            } else if (row === tRow && col === tCol) {
+            const isPlayer = row === pRow && col === pCol;
+            const isTarget = row === tRow && col === tCol;
+
+            if (isTarget) {
                 cell.classList.add('target-cell');
                 if (targetPianoRoll) {
                     cell.classList.add('target-cell-piano');
@@ -607,6 +617,15 @@ function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetPianoRo
                 } else {
                     cell.textContent = '●';
                 }
+            }
+
+            if (isPlayer) {
+                cell.classList.add('player-cell');
+            }
+
+            // Dim everything except the active cell
+            if (hasDim && !(row === dimmedActiveRow && col === dimmedActiveCol)) {
+                cell.classList.add('cell-dimmed');
             }
 
             container.appendChild(cell);

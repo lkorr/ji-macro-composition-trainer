@@ -162,6 +162,18 @@ function playSound(type) {
 
         osc.start(now);
         osc.stop(now + 0.15);
+    } else if (type === 'wrong') {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.linearRampToValueAtTime(140, now + 0.3);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
     } else if (type === 'excellent') {
         // Major chord arpeggio for completing the chord
         const notes = [

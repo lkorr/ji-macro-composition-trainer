@@ -19,7 +19,7 @@ function reduceFraction(num, denom) {
 const BASE_CHORD_TYPES = {
     '4:5:6': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }],            // Major
     '10:12:15': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }],         // Minor
-    '5:6:7': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 7, denom: 5 }],            // Diminished
+    '25:30:36': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 36, denom: 25 }],        // Diminished
     '16:20:25': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 25, denom: 16 }],       // Augmented
     '6:8:9': [{ num: 1, denom: 1 }, { num: 4, denom: 3 }, { num: 3, denom: 2 }],            // Sus4
     '8:9:12': [{ num: 1, denom: 1 }, { num: 9, denom: 8 }, { num: 3, denom: 2 }],           // Sus2
@@ -29,7 +29,9 @@ const BASE_CHORD_TYPES = {
     '8:10:12:15': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }, { num: 15, denom: 8 }],    // Major 7th
     '10:12:15:18': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }, { num: 9, denom: 5 }],    // Minor 7th
     '4:5:6:7': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }, { num: 7, denom: 4 }],        // Harmonic 7th
-    '20:24:30:35': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }, { num: 7, denom: 4 }],    // Subminor 7th
+    '20:24:30:35': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }, { num: 7, denom: 4 }],    // Subminor 7th (old)
+    '12:14:18:21': [{ num: 1, denom: 1 }, { num: 7, denom: 6 }, { num: 3, denom: 2 }, { num: 7, denom: 4 }],    // Subminor 7th
+    '14:18:21:27': [{ num: 1, denom: 1 }, { num: 9, denom: 7 }, { num: 3, denom: 2 }, { num: 27, denom: 14 }],  // Supermajor 7th
     '12:15:18:20': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }, { num: 5, denom: 3 }],    // Major 6th
     '30:36:45:50': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }, { num: 5, denom: 3 }]     // Minor 6th
 };
@@ -39,7 +41,7 @@ const CHORD_NAMES = {
     // Base triads
     '4:5:6': 'Major',
     '10:12:15': 'Minor',
-    '5:6:7': 'Diminished',
+    '25:30:36': 'Diminished',
     '16:20:25': 'Augmented',
     '6:8:9': 'Sus4',
     '8:9:12': 'Sus2',
@@ -51,7 +53,9 @@ const CHORD_NAMES = {
     '8:10:12:15': 'Major 7th',
     '10:12:15:18': 'Minor 7th',
     '4:5:6:7': 'Harmonic 7th',
-    '20:24:30:35': 'Subminor 7th',
+    '20:24:30:35': 'Subminor 7th (alt)',
+    '12:14:18:21': 'Subminor 7th',
+    '14:18:21:27': 'Supermajor 7th',
 
     // 6th chords
     '12:15:18:20': 'Major 6th',
@@ -169,7 +173,7 @@ const CUSTOM_ORDER = [
     '10:12:15',     // Minor
     '6:7:9',        // Subminor
     '14:18:21',     // Supermajor
-    '5:6:7',        // Diminished
+    '25:30:36',     // Diminished
     '16:20:25',     // Augmented
     '6:8:9',        // Sus4
     '8:9:12',       // Sus2
@@ -177,12 +181,14 @@ const CUSTOM_ORDER = [
     '8:10:12:15',   // Major 7th
     '10:12:15:18',  // Minor 7th
     '4:5:6:7',      // Harmonic 7th
-    '20:24:30:35',  // Subminor 7th
+    '20:24:30:35',  // Subminor 7th (old)
+    '12:14:18:21',  // Subminor 7th
+    '14:18:21:27',  // Supermajor 7th
     '12:15:18:20',  // Major 6th
     '30:36:45:50'   // Minor 6th
 ];
 
-const TOTAL_BASE_CHORDS = CUSTOM_ORDER.length; // 15
+const TOTAL_BASE_CHORDS = CUSTOM_ORDER.length; // 17
 
 // Count how many unique base chords are represented in a chord list
 function countBaseChords(chordList) {
