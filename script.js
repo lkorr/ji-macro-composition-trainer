@@ -3211,9 +3211,12 @@ function attachChordGroupHandlers(container, options) {
     });
 }
 
+// Track which Sets have had their default collapsed state initialized
+const _initializedCollapsedSets = new WeakSet();
+
 // Initialize default collapsed state (collapse all groups that have children)
 function initDefaultCollapsedState(chordList, collapsedSet) {
-    if (collapsedSet._initialized) return;
+    if (_initializedCollapsedSets.has(collapsedSet)) return;
     const { groups, groupOrder } = groupChordsHierarchically(chordList);
     for (const baseKey of groupOrder) {
         const group = groups.get(baseKey);
@@ -3221,7 +3224,7 @@ function initDefaultCollapsedState(chordList, collapsedSet) {
             collapsedSet.add(baseKey);
         }
     }
-    collapsedSet._initialized = true;
+    _initializedCollapsedSets.add(collapsedSet);
 }
 
 // ===== END CHORD GROUPING HELPERS =====
