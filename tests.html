@@ -416,8 +416,23 @@
     const descName = getIntervalName(2, 3);
     assert('Descending interval starts with DOWN', descName.startsWith('DOWN'));
 
+    // --- buildSortedIntervals ---
+    group('buildSortedIntervals()');
+    const sorted = buildSortedIntervals();
+    assert('buildSortedIntervals returns intervals', sorted.length > 50);
+    // First should be ascending (ratio >= 1)
+    assert('First interval is ascending', sorted[0].num / sorted[0].denom >= 1);
+    // Ascending intervals should come before their descending counterparts
+    const firstDescIdx = sorted.findIndex(i => i.num / i.denom < 1);
+    assert('Descending intervals are interleaved (not all at end)', firstDescIdx < sorted.length / 2);
+    // Check ascending intervals are sorted by complexity
+    const ascOnly = sorted.filter(i => i.num / i.denom >= 1);
+    const ascSorted = ascOnly.every((v, i) => i === 0 || ascOnly[i-1].complexity <= v.complexity);
+    assert('Ascending intervals sorted by complexity', ascSorted);
+
     // --- playSound function exists ---
     group('Function Existence');
+    assert('buildSortedIntervals is a function', typeof buildSortedIntervals === 'function');
     assert('playSound is a function', typeof playSound === 'function');
     assert('gcd is a function', typeof gcd === 'function');
     assert('reduceFraction is a function', typeof reduceFraction === 'function');

@@ -1523,43 +1523,35 @@ function getCorrectFactorization() {
 
 // ===== ADAPTIVE MODE FUNCTIONS =====
 
-// Initialize adaptive mode with all intervals sorted by complexity
-function initializeAdaptiveMode() {
-    // Generate all intervals (complexity 0-900)
+// Build sorted intervals: ascending by complexity, each followed by its descending counterpart
+function buildSortedIntervals() {
     const allIntervals = generateIntervals(0, 900);
+    const ascending = allIntervals.filter(i => i.num / i.denom >= 1);
+    const descending = allIntervals.filter(i => i.num / i.denom < 1);
+    ascending.sort((a, b) => a.complexity - b.complexity);
 
-    // Separate ascending and descending intervals
-    const ascendingIntervals = allIntervals.filter(i => i.num / i.denom >= 1);
-    const descendingIntervals = allIntervals.filter(i => i.num / i.denom < 1);
-
-    // Sort ascending by complexity, then add descending pairs after their ascending counterparts
-    ascendingIntervals.sort((a, b) => a.complexity - b.complexity);
-
-    allIntervalsSorted = [];
-    const descendingMap = new Map();
-
-    // Create map of descending intervals by their ascending counterpart
-    for (const desc of descendingIntervals) {
-        const ascKey = `${desc.denom}/${desc.num}`; // reciprocal
-        descendingMap.set(ascKey, desc);
+    const result = [];
+    const descMap = new Map();
+    for (const desc of descending) {
+        descMap.set(`${desc.denom}/${desc.num}`, desc);
     }
-
-    // Build sorted list: ascending interval followed by its descending counterpart (if exists)
-    for (const asc of ascendingIntervals) {
+    for (const asc of ascending) {
         const ascKey = `${asc.num}/${asc.denom}`;
-        allIntervalsSorted.push(asc);
-
-        // Add descending counterpart immediately after if it exists
-        if (descendingMap.has(ascKey)) {
-            allIntervalsSorted.push(descendingMap.get(ascKey));
-            descendingMap.delete(ascKey); // Mark as added
+        result.push(asc);
+        if (descMap.has(ascKey)) {
+            result.push(descMap.get(ascKey));
+            descMap.delete(ascKey);
         }
     }
-
-    // Add any remaining descending intervals that didn't have ascending counterparts
-    for (const desc of descendingMap.values()) {
-        allIntervalsSorted.push(desc);
+    for (const desc of descMap.values()) {
+        result.push(desc);
     }
+    return result;
+}
+
+// Initialize adaptive mode with all intervals sorted by complexity
+function initializeAdaptiveMode() {
+    allIntervalsSorted = buildSortedIntervals();
 
     // Initialize stats for all intervals
     intervalStats = {};
@@ -1604,41 +1596,8 @@ function loadAdaptiveProgress() {
             tutorialIndex = data.tutorialIndex !== undefined ? data.tutorialIndex : 0;
             tutorialActive = data.tutorialActive !== undefined ? data.tutorialActive : true;
 
-            // Reconstruct interval objects with proper ordering (ascending first, then descending)
-            const allIntervals = generateIntervals(0, 900);
-
-            // Separate ascending and descending intervals
-            const ascendingIntervals = allIntervals.filter(i => i.num / i.denom >= 1);
-            const descendingIntervals = allIntervals.filter(i => i.num / i.denom < 1);
-
-            // Sort ascending by complexity
-            ascendingIntervals.sort((a, b) => a.complexity - b.complexity);
-
-            allIntervalsSorted = [];
-            const descendingMap = new Map();
-
-            // Create map of descending intervals by their ascending counterpart
-            for (const desc of descendingIntervals) {
-                const ascKey = `${desc.denom}/${desc.num}`; // reciprocal
-                descendingMap.set(ascKey, desc);
-            }
-
-            // Build sorted list: ascending interval followed by its descending counterpart (if exists)
-            for (const asc of ascendingIntervals) {
-                const ascKey = `${asc.num}/${asc.denom}`;
-                allIntervalsSorted.push(asc);
-
-                // Add descending counterpart immediately after if it exists
-                if (descendingMap.has(ascKey)) {
-                    allIntervalsSorted.push(descendingMap.get(ascKey));
-                    descendingMap.delete(ascKey); // Mark as added
-                }
-            }
-
-            // Add any remaining descending intervals that didn't have ascending counterparts
-            for (const desc of descendingMap.values()) {
-                allIntervalsSorted.push(desc);
-            }
+            // Reconstruct interval objects with proper ordering
+            allIntervalsSorted = buildSortedIntervals();
 
             // Restore interval references in stats
             for (const key in intervalStats) {
@@ -1701,41 +1660,7 @@ function resumeFromLevel(targetLevel) {
     // Convert level to number of intervals (level 1 = 5 intervals, level 2 = 6 intervals, etc.)
     let numIntervals = targetLevel + 4;
 
-    // Generate all intervals with proper ordering (ascending first, then descending)
-    const allIntervals = generateIntervals(0, 900);
-
-    // Separate ascending and descending intervals
-    const ascendingIntervals = allIntervals.filter(i => i.num / i.denom >= 1);
-    const descendingIntervals = allIntervals.filter(i => i.num / i.denom < 1);
-
-    // Sort ascending by complexity
-    ascendingIntervals.sort((a, b) => a.complexity - b.complexity);
-
-    allIntervalsSorted = [];
-    const descendingMap = new Map();
-
-    // Create map of descending intervals by their ascending counterpart
-    for (const desc of descendingIntervals) {
-        const ascKey = `${desc.denom}/${desc.num}`; // reciprocal
-        descendingMap.set(ascKey, desc);
-    }
-
-    // Build sorted list: ascending interval followed by its descending counterpart (if exists)
-    for (const asc of ascendingIntervals) {
-        const ascKey = `${asc.num}/${asc.denom}`;
-        allIntervalsSorted.push(asc);
-
-        // Add descending counterpart immediately after if it exists
-        if (descendingMap.has(ascKey)) {
-            allIntervalsSorted.push(descendingMap.get(ascKey));
-            descendingMap.delete(ascKey); // Mark as added
-        }
-    }
-
-    // Add any remaining descending intervals that didn't have ascending counterparts
-    for (const desc of descendingMap.values()) {
-        allIntervalsSorted.push(desc);
-    }
+    allIntervalsSorted = buildSortedIntervals();
 
     if (numIntervals > allIntervalsSorted.length) {
         alert(`Maximum level is ${allIntervalsSorted.length - 4}. Setting to maximum.`);
