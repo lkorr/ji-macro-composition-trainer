@@ -332,7 +332,6 @@
             <li><a href="#interval-mode">Interval Mode in depth</a></li>
             <li><a href="#chord-mode">Chord Mode in depth</a></li>
             <li><a href="#grid-modes">Grid &amp; Onslaught modes</a></li>
-            <li><a href="#macro-setup">Macro layout &amp; ergonomics</a></li>
             <li><a href="#faq">FAQ</a></li>
         </ul>
     </div>
@@ -645,80 +644,6 @@
 [4, 5, 6, 7] : Harmonic 7th   ← harmonic integers also accepted</pre>
     </div>
 
-    <!-- MACRO ERGONOMICS -->
-    <div class="card" id="macro-setup">
-        <h2>Macro layout &amp; ergonomics</h2>
-        <p>
-            The config ships with two complementary presets. Both are starting points — every key
-            is fully reassignable in the config GUI (<kbd>Ctrl+`</kbd>).
-        </p>
-
-        <h3>Default preset — numpad, 37-EDO</h3>
-        <p>
-            Designed for one-handed use on a numpad while the other hand stays on the mouse.
-            Intervals are grouped in adjacent pairs (up/down for the same ratio sit next to each other)
-            so you can roll between them without repositioning:
-        </p>
-        <ul>
-            <li>3/2 up/down → <kbd>Num8</kbd> / <kbd>Num9</kbd> (side by side, middle row)</li>
-            <li>5/4 up/down → <kbd>Num5</kbd> / <kbd>Num6</kbd> (side by side, centre)</li>
-            <li>7/4 up/down → <kbd>Num2</kbd> / <kbd>Num3</kbd> (side by side, lower row)</li>
-            <li>11/8 up/down → <kbd>Num0</kbd> / <kbd>Num.</kbd> (bottom row)</li>
-            <li>2/1 up/down → <kbd>NumLock</kbd> / <kbd>Num7</kbd> (top row, less frequent)</li>
-            <li>13/8 up/down → <kbd>NumDiv</kbd> / <kbd>NumMult</kbd> (top operators)</li>
-            <li>Undo/Redo → <kbd>Num−</kbd> / <kbd>Num+</kbd> (right column)</li>
-            <li>Toggle → <kbd>NumpadEnter</kbd></li>
-        </ul>
-        <p>EDO is set to <strong>37</strong>, giving accurate representation of 5-limit and 7-limit JI intervals.</p>
-
-        <h3>qwerrttY preset — keyboard row, 12-EDO</h3>
-        <p>
-            Designed to match the trainer's default key layout, so training sessions transfer
-            directly to DAW sessions. The number row covers upward ratios, the letter row below
-            covers their reciprocals. Navigation and copy/paste are on the left hand:
-        </p>
-        <ul>
-            <li>Upward ratios → <kbd>1</kbd>–<kbd>7</kbd> (2/1, 3/2, 5/4, 7/4, 11/8, 13/8, 17/16)</li>
-            <li>Downward ratios → <kbd>q</kbd>–<kbd>u</kbd> (reciprocals of above)</li>
-            <li>Copy+Paste → <kbd>Tab</kbd></li>
-            <li>Paste → <kbd>`</kbd></li>
-            <li>Navigation → <kbd>a</kbd> / <kbd>s</kbd> / <kbd>d</kbd> / <kbd>f</kbd></li>
-            <li>Toggle → <kbd>Ctrl+CapsLock</kbd></li>
-        </ul>
-
-        <h3>Principles for customising to your hand</h3>
-        <ol>
-            <li>
-                <strong>Group your most-used intervals together.</strong>
-                3/2 and 5/4 are used constantly. Put them where your fingers rest naturally —
-                ideally adjacent so you can roll between them without repositioning.
-            </li>
-            <li>
-                <strong>Keep up/down for the same interval spatially related.</strong>
-                Side-by-side or top/bottom both work. The default numpad preset puts each pair
-                as left/right neighbours on the same row.
-            </li>
-            <li>
-                <strong>Disable intervals you don't compose with.</strong>
-                Slot 7 is disabled in the default preset. Disable any slot to prevent accidental triggers.
-            </li>
-            <li>
-                <strong>Match the trainer key layout to the macro layout.</strong>
-                The closer the trainer's ratio keys are to the macro hotkeys, the more directly
-                drill sessions transfer to DAW sessions. The <em>qwerrttY</em> preset does this by design.
-            </li>
-            <li>
-                <strong>Use presets for different EDOs or styles.</strong>
-                Save a 37-EDO preset for JI work and a 12-EDO preset for standard chromatic work.
-                Switch instantly from the config GUI.
-            </li>
-            <li>
-                <strong>Tune Sleep Delay to your DAW.</strong>
-                Test by pressing a large interval (e.g. 2/1 = 37 steps in 37-EDO) on a selected note.
-                If it doesn't land exactly an octave up, increase Sleep Delay by 5 ms increments.
-            </li>
-        </ol>
-    </div>
 
     <!-- FAQ -->
     <div class="card" id="faq">
