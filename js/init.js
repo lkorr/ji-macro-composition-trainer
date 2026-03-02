@@ -25,6 +25,16 @@ if (backFromHotkeysBtn) {
     });
 }
 
+const cgCaptureKeyInput = document.getElementById('cg-capture-key-input');
+if (cgCaptureKeyInput) {
+    cgCaptureKeyInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            cgCaptureKeyInput.value = 'Tab';
+        }
+    });
+}
+
 const saveHotkeysBtn = document.getElementById('save-hotkeys-btn');
 if (saveHotkeysBtn) {
     saveHotkeysBtn.addEventListener('click', () => {
