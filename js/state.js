@@ -79,7 +79,7 @@ let audioContext = null;
 // Chord-Grid game state
 let chordGridGameActive = false;
 let chordGridPhase = 'grid'; // 'grid' or 'chord'
-let chordGridSize = 10;
+let chordGridSize = 5;
 let chordGridPlayerRow = 0;
 let chordGridPlayerCol = 0;
 let chordGridTargetRow = 0;

@@ -639,7 +639,7 @@ function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue }) 
 
     // Chord name
     if (label) {
-        svg += `<text x="${vbW / 2}" y="${labelH - 3}" text-anchor="middle" font-size="7" font-weight="bold" fill="white" font-family="sans-serif">${label}</text>`;
+        svg += `<text x="${vbW / 2}" y="${labelH - 3}" text-anchor="middle" font-size="11" font-weight="bold" fill="white" font-family="sans-serif">${label}</text>`;
     }
 
     // Piano roll bars
