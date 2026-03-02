@@ -33,7 +33,8 @@ let tutorialActive = true; // Whether tutorial is active
 // Adaptive chord mode state
 let chordStats = {}; // { 'chordKey': { attempts: 0, totalTime: 0, recentTimes: [], mastered: false, lastSeenQuestion: -1 } }
 let activeChords = []; // Currently unlocked chords
-let allChordsSorted = []; // All chords sorted by complexity
+let allChordsSorted = []; // All chords sorted by complexity (chord mode)
+let cgAllChordsSorted = []; // All chords sorted by complexity (chord+grid mode)
 let adaptiveChordLevel = 1; // Current chord level
 let lastChord = null; // Track last chord to prevent immediate repeats
 let globalChordQuestionCounter = 0; // Track total chord questions asked
@@ -3786,10 +3787,10 @@ function startChordGridGame() {
 // Initialize chord-grid adaptive mode
 function initializeCGAdaptiveMode() {
     // Initialize sorted chords (expand starting positions if enabled, include inversions if enabled)
-    initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
+    cgAllChordsSorted = initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
 
     cgChordStats = {};
-    for (const chord of allChordsSorted) {
+    for (const chord of cgAllChordsSorted) {
         cgChordStats[chord.key] = {
             attempts: 0,
             totalTime: 0,
@@ -3802,8 +3803,8 @@ function initializeCGAdaptiveMode() {
 
     // Start with the first chord entry
     cgActiveChords = [];
-    if (allChordsSorted.length > 0) {
-        cgActiveChords.push(allChordsSorted[0]);
+    if (cgAllChordsSorted.length > 0) {
+        cgActiveChords.push(cgAllChordsSorted[0]);
     }
 
     cgNewChordDrillCount = 0;
@@ -3812,7 +3813,7 @@ function initializeCGAdaptiveMode() {
     cgTutorialIndex = 0;
 
     // Set tutorial sequence dynamically
-    cgTutorialSequence = allChordsSorted.length > 0 ? [allChordsSorted[0].key] : ['4:5:6'];
+    cgTutorialSequence = cgAllChordsSorted.length > 0 ? [cgAllChordsSorted[0].key] : ['4:5:6'];
 
     cgAdaptiveLevel = countBaseChords(cgActiveChords);
 
@@ -3828,10 +3829,10 @@ function loadCGAdaptiveProgress() {
             const savedExpandFlag = data.chordGridRandomStart || false;
 
             // Initialize sorted chords with current flags
-            initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
+            cgAllChordsSorted = initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
 
             // Set tutorial sequence dynamically
-            cgTutorialSequence = allChordsSorted.length > 0 ? [allChordsSorted[0].key] : ['4:5:6'];
+            cgTutorialSequence = cgAllChordsSorted.length > 0 ? [cgAllChordsSorted[0].key] : ['4:5:6'];
 
             // Check if expand flag changed - need migration
             if (savedExpandFlag !== chordGridRandomStart) {
@@ -3864,7 +3865,7 @@ function loadCGAdaptiveProgress() {
                     } else {
                         newKey = oldKey.replace(/_sp\d+$/, '');
                     }
-                    const chord = allChordsSorted.find(c => c.key === newKey);
+                    const chord = cgAllChordsSorted.find(c => c.key === newKey);
                     if (chord && !migratedActive.find(c => c.key === chord.key)) {
                         migratedActive.push(chord);
                     }
@@ -3893,7 +3894,7 @@ function loadCGAdaptiveProgress() {
 
             // Restore chord references
             for (const key in cgChordStats) {
-                const chord = allChordsSorted.find(c => c.key === key);
+                const chord = cgAllChordsSorted.find(c => c.key === key);
                 if (chord) cgChordStats[key].chord = chord;
             }
 
@@ -3901,7 +3902,7 @@ function loadCGAdaptiveProgress() {
             if (!Array.isArray(cgActiveChords[0]?.intervals)) {
                 cgActiveChords = cgActiveChords.map(savedChord => {
                     const key = savedChord.key || savedChord;
-                    return allChordsSorted.find(c => c.key === key);
+                    return cgAllChordsSorted.find(c => c.key === key);
                 }).filter(c => c);
             }
 
@@ -3956,7 +3957,7 @@ function resumeFromCGLevel(targetLevel) {
     }
 
     // Initialize sorted chords with current flags
-    initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
+    cgAllChordsSorted = initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
 
     let numBaseChords = targetLevel;
     if (numBaseChords > TOTAL_BASE_CHORDS) {
@@ -3965,7 +3966,7 @@ function resumeFromCGLevel(targetLevel) {
     }
 
     cgChordStats = {};
-    for (const chord of allChordsSorted) {
+    for (const chord of cgAllChordsSorted) {
         cgChordStats[chord.key] = {
             attempts: 0,
             totalTime: 0,
@@ -3977,7 +3978,7 @@ function resumeFromCGLevel(targetLevel) {
     }
 
     // Get all variants for the first N base chords
-    const variantsToUnlock = getAllVariantsForFirstNBaseChords(numBaseChords, allChordsSorted);
+    const variantsToUnlock = getAllVariantsForFirstNBaseChords(numBaseChords, cgAllChordsSorted);
 
     cgActiveChords = [];
     for (let i = 0; i < variantsToUnlock.length; i++) {
@@ -4039,7 +4040,7 @@ function updateCGLevelDisplay() {
 function updateCGStats() {
     updateChordStatsGeneric({
         statsElId: 'cg-stats',
-        activeChords: cgActiveChords, allSorted: allChordsSorted, statsObj: cgChordStats,
+        activeChords: cgActiveChords, allSorted: cgAllChordsSorted, statsObj: cgChordStats,
         disabledSet: cgDisabledChords, collapsedSet: collapsedCGChordGroups,
         getMasteryThreshold: getCGMasteryThreshold, getMinAttempts: getCGMinAttempts,
         getRollingWindow: getCGRollingWindow,
@@ -4052,7 +4053,7 @@ function updateCGStats() {
 function updateCGGameProgress() {
     updateGameChordProgressGeneric({
         containerId: 'cg-game-interval-progress', statsElId: 'cg-game-progress-stats',
-        activeChords: cgActiveChords, allSorted: allChordsSorted, statsObj: cgChordStats,
+        activeChords: cgActiveChords, allSorted: cgAllChordsSorted, statsObj: cgChordStats,
         disabledSet: cgDisabledChords, collapsedSet: collapsedCGChordGroups,
         getMasteryThreshold: getCGMasteryThreshold, getMinAttempts: getCGMinAttempts,
         getRollingWindow: getCGRollingWindow,
@@ -4076,7 +4077,7 @@ function selectWeightedRandomCGChord() {
 
 function checkAndUnlockNextCGChord() {
     checkAndUnlockNextChordGeneric({
-        activeChords: cgActiveChords, allSorted: allChordsSorted, statsObj: cgChordStats, disabledSet: cgDisabledChords,
+        activeChords: cgActiveChords, allSorted: cgAllChordsSorted, statsObj: cgChordStats, disabledSet: cgDisabledChords,
         getMasteryThreshold: getCGMasteryThreshold, getMinAttempts: getCGMinAttempts,
         getRollingWindow: getCGRollingWindow,
         getCurrentNewChord: () => cgCurrentNewChord, setCurrentNewChord: v => { cgCurrentNewChord = v; },
@@ -4140,8 +4141,7 @@ function selectNextChordGridChord() {
     cgGlobalQuestionCounter++;
     cgLastChord = cgCurrentChord;
 
-    // Look up the chord entry from allChordsSorted
-    const cgChordEntry = allChordsSorted.find(c => c.key === cgCurrentChord);
+    const cgChordEntry = cgAllChordsSorted.find(c => c.key === cgCurrentChord);
 
     // Use entry's pre-computed starting position and expected intervals
     cgCurrentStartingPosition = cgChordEntry ? cgChordEntry.startingPosition : 0;
@@ -4165,7 +4165,7 @@ function updateChordGridChordDisplay() {
     if (!nameEl) return;
 
     // Look up the chord entry
-    const cgDisplayEntry = allChordsSorted.find(c => c.key === cgCurrentChord);
+    const cgDisplayEntry = cgAllChordsSorted.find(c => c.key === cgCurrentChord);
     const traditionalName = cgDisplayEntry ? cgDisplayEntry.name : (CHORD_NAMES[cgCurrentChord] || cgCurrentChord);
     const harmonicNotation = cgDisplayEntry ? cgDisplayEntry.chordKey : cgCurrentChord;
 
@@ -4412,7 +4412,7 @@ function handleChordGridChordKeypress(event, key) {
 
                     if (cgNewChordDrillCount >= cgNewChordDrillTarget) {
                         // Add to active chords
-                        const chordToAdd = allChordsSorted.find(c => c.key === cgCurrentNewChord);
+                        const chordToAdd = cgAllChordsSorted.find(c => c.key === cgCurrentNewChord);
                         if (chordToAdd && !cgActiveChords.find(c => c.key === chordToAdd.key)) {
                             cgActiveChords.push(chordToAdd);
                             if (!cgChordStats[chordToAdd.key]) {
