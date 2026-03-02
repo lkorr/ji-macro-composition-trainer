@@ -3,12 +3,8 @@
 // ============================================================
 
 // DOM elements
-const mappingPanel = document.getElementById('mapping-panel');
 const gamePanel = document.getElementById('game-panel');
 const mappingConfigBtn = document.getElementById('mapping-config-btn');
-const backToAdaptiveBtn = document.getElementById('back-to-adaptive-btn');
-const resetMappingsBtn = document.getElementById('reset-mappings-btn');
-const saveMappingsBtn = document.getElementById('save-mappings-btn');
 const targetIntervalEl = document.getElementById('target-interval');
 const currentCompositionEl = document.getElementById('current-composition');
 const feedbackEl = document.getElementById('feedback');
@@ -22,8 +18,8 @@ const keyboardLegendGrid = document.getElementById('keyboard-legend-grid');
 // Navigation functions
 const ALL_PANEL_IDS = [
     'main-menu-panel', 'adaptive-mode-panel', 'adaptive-chord-mode-panel',
-    'chord-grid-mode-panel', 'chord-grid-game-panel', 'chord-grid-hotkeys-panel',
-    'mapping-panel', 'game-panel'
+    'chord-grid-mode-panel', 'chord-grid-game-panel',
+    'hotkeys-panel', 'game-panel'
 ];
 
 function showPanel(panelId) {
@@ -47,9 +43,13 @@ function showAdaptiveChordMode() {
     updateAdaptiveChordStats();
 }
 
-function showMappingConfig() {
-    showPanel('mapping-panel');
-    renderMappingConfig();
+// Track which panel to return to when closing the hotkeys panel
+let hotkeysPanelOrigin = 'adaptive-mode-panel';
+
+function showHotkeysPanel(origin) {
+    hotkeysPanelOrigin = origin || 'adaptive-mode-panel';
+    showPanel('hotkeys-panel');
+    renderHotkeysPanel();
 }
 
 function showGame() {
@@ -65,12 +65,53 @@ function showChordGridGame() {
     showPanel('chord-grid-game-panel');
 }
 
-function showChordGridHotkeys() {
-    showPanel('chord-grid-hotkeys-panel');
-    renderCGHotkeyConfig();
-}
+// Unified hotkeys panel render
+function renderHotkeysPanel() {
+    // Ratio inputs
+    const primeRatios = [
+        { num: 2, denom: 1 }, { num: 3, denom: 2 }, { num: 5, denom: 4 },
+        { num: 7, denom: 4 }, { num: 11, denom: 8 }, { num: 13, denom: 8 },
+        { num: 17, denom: 16 }, { num: 19, denom: 16 }, { num: 23, denom: 16 }, { num: 29, denom: 16 }
+    ];
+    const reciprocalRatios = [
+        { num: 1, denom: 2 }, { num: 2, denom: 3 }, { num: 4, denom: 5 },
+        { num: 4, denom: 7 }, { num: 8, denom: 11 }, { num: 8, denom: 13 },
+        { num: 16, denom: 17 }, { num: 16, denom: 19 }, { num: 16, denom: 23 }, { num: 16, denom: 29 }
+    ];
 
-function renderCGHotkeyConfig() {
+    function findKeyForRatio(ratio, mappings) {
+        for (const [key, r] of Object.entries(mappings)) {
+            if (r.num === ratio.num && r.denom === ratio.denom) return key;
+        }
+        return '';
+    }
+
+    const primeMappingsEl = document.getElementById('prime-mappings');
+    const reciprocalMappingsEl = document.getElementById('reciprocal-mappings');
+    primeMappingsEl.innerHTML = '';
+    reciprocalMappingsEl.innerHTML = '';
+
+    for (const ratio of primeRatios) {
+        const currentKey = findKeyForRatio(ratio, primeMappings);
+        const div = document.createElement('div');
+        div.className = 'mapping-item';
+        div.innerHTML = `<label><span class="key-display">${ratio.num}/${ratio.denom}</span> → <input type="text" class="ratio-input key-input" data-num="${ratio.num}" data-denom="${ratio.denom}" data-type="prime" value="${currentKey}" maxlength="1" placeholder="key"></label>`;
+        primeMappingsEl.appendChild(div);
+    }
+
+    for (const ratio of reciprocalRatios) {
+        const currentKey = findKeyForRatio(ratio, reciprocalMappings);
+        const div = document.createElement('div');
+        div.className = 'mapping-item';
+        div.innerHTML = `<label><span class="key-display">${ratio.num}/${ratio.denom}</span> → <input type="text" class="ratio-input key-input" data-num="${ratio.num}" data-denom="${ratio.denom}" data-type="reciprocal" value="${currentKey}" maxlength="1" placeholder="key"></label>`;
+        reciprocalMappingsEl.appendChild(div);
+    }
+
+    // Special keys
+    const submitKeyInput = document.getElementById('submit-key-input');
+    if (submitKeyInput) submitKeyInput.value = submitKey;
+
+    // Grid movement keys
     const leftInput = document.getElementById('cg-move-left-input');
     const upInput = document.getElementById('cg-move-up-input');
     const downInput = document.getElementById('cg-move-down-input');
@@ -83,7 +124,26 @@ function renderCGHotkeyConfig() {
     if (captureInput) captureInput.value = cgCaptureKey === 'tab' ? 'Tab' : cgCaptureKey;
 }
 
-function saveCGHotkeyConfig() {
+function saveHotkeysPanel() {
+    // Save ratio mappings
+    primeMappings = {};
+    reciprocalMappings = {};
+    document.querySelectorAll('.ratio-input').forEach(input => {
+        const num = parseInt(input.dataset.num);
+        const denom = parseInt(input.dataset.denom);
+        const key = input.value.trim().toLowerCase();
+        if (key.length === 1) {
+            if (input.dataset.type === 'prime') primeMappings[key] = { num, denom };
+            else reciprocalMappings[key] = { num, denom };
+        }
+    });
+    updateAllMappings();
+
+    // Save submit key
+    const submitKeyInput = document.getElementById('submit-key-input');
+    if (submitKeyInput && submitKeyInput.value.length === 1) submitKey = submitKeyInput.value;
+
+    // Save grid movement keys
     const leftInput = document.getElementById('cg-move-left-input');
     const upInput = document.getElementById('cg-move-up-input');
     const downInput = document.getElementById('cg-move-down-input');
@@ -97,123 +157,19 @@ function saveCGHotkeyConfig() {
         const v = captureInput.value.trim().toLowerCase();
         if (v === 'tab' || v.length === 1) cgCaptureKey = v;
     }
+
     saveSettings();
 }
 
-function resetCGHotkeyConfig() {
-    cgMoveLeft = 'a'; cgMoveUp = 's'; cgMoveDown = 'd'; cgMoveRight = 'f';
-    cgCaptureKey = 'tab';
-    renderCGHotkeyConfig();
-    saveSettings();
-}
-
-// Mapping configuration
-function renderMappingConfig() {
-    const primeMappingsEl = document.getElementById('prime-mappings');
-    const reciprocalMappingsEl = document.getElementById('reciprocal-mappings');
-
-    primeMappingsEl.innerHTML = '';
-    reciprocalMappingsEl.innerHTML = '';
-
-    // Define the fixed prime ratios in order
-    const primeRatios = [
-        { num: 2, denom: 1 },
-        { num: 3, denom: 2 },
-        { num: 5, denom: 4 },
-        { num: 7, denom: 4 },
-        { num: 11, denom: 8 },
-        { num: 13, denom: 8 },
-        { num: 17, denom: 16 },
-        { num: 19, denom: 16 },
-        { num: 23, denom: 16 },
-        { num: 29, denom: 16 }
-    ];
-
-    // Define the fixed reciprocal ratios in order
-    const reciprocalRatios = [
-        { num: 1, denom: 2 },
-        { num: 2, denom: 3 },
-        { num: 4, denom: 5 },
-        { num: 4, denom: 7 },
-        { num: 8, denom: 11 },
-        { num: 8, denom: 13 },
-        { num: 16, denom: 17 },
-        { num: 16, denom: 19 },
-        { num: 16, denom: 23 },
-        { num: 16, denom: 29 }
-    ];
-
-    // Find which key maps to each prime ratio
-    function findKeyForRatio(ratio, mappings) {
-        for (const [key, r] of Object.entries(mappings)) {
-            if (r.num === ratio.num && r.denom === ratio.denom) {
-                return key;
-            }
-        }
-        return '';
-    }
-
-    // Render prime mappings (inverted: ratio → key)
-    for (const ratio of primeRatios) {
-        const currentKey = findKeyForRatio(ratio, primeMappings);
-        const div = document.createElement('div');
-        div.className = 'mapping-item';
-        div.innerHTML = `
-            <label>
-                <span class="key-display">${ratio.num}/${ratio.denom}</span> →
-                <input type="text" class="ratio-input key-input" data-num="${ratio.num}" data-denom="${ratio.denom}" data-type="prime" value="${currentKey}" maxlength="1" placeholder="key">
-            </label>
-        `;
-        primeMappingsEl.appendChild(div);
-    }
-
-    // Render reciprocal mappings (inverted: ratio → key)
-    for (const ratio of reciprocalRatios) {
-        const currentKey = findKeyForRatio(ratio, reciprocalMappings);
-        const div = document.createElement('div');
-        div.className = 'mapping-item';
-        div.innerHTML = `
-            <label>
-                <span class="key-display">${ratio.num}/${ratio.denom}</span> →
-                <input type="text" class="ratio-input key-input" data-num="${ratio.num}" data-denom="${ratio.denom}" data-type="reciprocal" value="${currentKey}" maxlength="1" placeholder="key">
-            </label>
-        `;
-        reciprocalMappingsEl.appendChild(div);
-    }
-}
-
-function updateMappingsFromInputs() {
-    const inputs = document.querySelectorAll('.ratio-input');
-
-    // Clear existing mappings
-    primeMappings = {};
-    reciprocalMappings = {};
-
-    inputs.forEach(input => {
-        const num = parseInt(input.dataset.num);
-        const denom = parseInt(input.dataset.denom);
-        const type = input.dataset.type;
-        const key = input.value.trim().toLowerCase();
-
-        // Only add mapping if a key was provided
-        if (key.length === 1) {
-            if (type === 'prime') {
-                primeMappings[key] = { num, denom };
-            } else {
-                reciprocalMappings[key] = { num, denom };
-            }
-        }
-    });
-
-    // Update combined mappings
-    updateAllMappings();
-}
-
-function resetMappings() {
+function resetHotkeysPanel() {
     primeMappings = { ...DEFAULT_PRIME_MAPPINGS };
     reciprocalMappings = { ...DEFAULT_RECIPROCAL_MAPPINGS };
     updateAllMappings();
-    renderMappingConfig();
+    submitKey = '`';
+    cgMoveLeft = 'a'; cgMoveUp = 's'; cgMoveDown = 'd'; cgMoveRight = 'f';
+    cgCaptureKey = 'tab';
+    renderHotkeysPanel();
+    saveSettings();
 }
 
 function updateAllMappings() {

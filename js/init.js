@@ -8,20 +8,36 @@ loadSettings();
 // Initialize combined mappings
 updateAllMappings();
 
-// Event listeners - mapping panel
+// Event listeners - unified hotkeys panel
 mappingConfigBtn.addEventListener('click', () => {
     if (gameActive) {
         gameActive = false;
         if (timerInterval) clearInterval(timerInterval);
     }
-    showMappingConfig();
+    showHotkeysPanel('adaptive-mode-panel');
 });
-backToAdaptiveBtn.addEventListener('click', showAdaptiveMode);
-resetMappingsBtn.addEventListener('click', resetMappings);
-saveMappingsBtn.addEventListener('click', () => {
-    updateMappingsFromInputs();
-    showAdaptiveMode();
-});
+
+const backFromHotkeysBtn = document.getElementById('back-from-hotkeys-btn');
+if (backFromHotkeysBtn) {
+    backFromHotkeysBtn.addEventListener('click', () => {
+        if (hotkeysPanelOrigin === 'chord-grid-mode-panel') showChordGridMode();
+        else showAdaptiveMode();
+    });
+}
+
+const saveHotkeysBtn = document.getElementById('save-hotkeys-btn');
+if (saveHotkeysBtn) {
+    saveHotkeysBtn.addEventListener('click', () => {
+        saveHotkeysPanel();
+        if (hotkeysPanelOrigin === 'chord-grid-mode-panel') showChordGridMode();
+        else showAdaptiveMode();
+    });
+}
+
+const resetHotkeysBtn = document.getElementById('reset-hotkeys-btn');
+if (resetHotkeysBtn) {
+    resetHotkeysBtn.addEventListener('click', resetHotkeysPanel);
+}
 
 // Settings button in game panel
 const settingsBtn = document.getElementById('settings-btn');
@@ -39,7 +55,7 @@ if (mappingConfigBtnGame) {
     mappingConfigBtnGame.addEventListener('click', () => {
         gameActive = false;
         if (timerInterval) clearInterval(timerInterval);
-        showMappingConfig();
+        showHotkeysPanel('game-panel');
     });
 }
 
@@ -273,25 +289,7 @@ if (backToMainFromChordGridBtn) {
 
 const cgHotkeysConfigBtn = document.getElementById('cg-hotkeys-config-btn');
 if (cgHotkeysConfigBtn) {
-    cgHotkeysConfigBtn.addEventListener('click', showChordGridHotkeys);
-}
-
-const backToChordGridFromHotkeysBtn = document.getElementById('back-to-chord-grid-from-hotkeys-btn');
-if (backToChordGridFromHotkeysBtn) {
-    backToChordGridFromHotkeysBtn.addEventListener('click', showChordGridMode);
-}
-
-const saveCGHotkeysBtn = document.getElementById('save-cg-hotkeys-btn');
-if (saveCGHotkeysBtn) {
-    saveCGHotkeysBtn.addEventListener('click', () => {
-        saveCGHotkeyConfig();
-        showChordGridMode();
-    });
-}
-
-const resetCGHotkeysBtn = document.getElementById('reset-cg-hotkeys-btn');
-if (resetCGHotkeysBtn) {
-    resetCGHotkeysBtn.addEventListener('click', resetCGHotkeyConfig);
+    cgHotkeysConfigBtn.addEventListener('click', () => showHotkeysPanel('chord-grid-mode-panel'));
 }
 
 const startChordGridBtn = document.getElementById('start-chord-grid-btn');

@@ -292,65 +292,64 @@
             </div>
         </div>
 
-        <!-- Mapping Configuration Panel -->
-        <div id="mapping-panel" class="panel" style="display: none;">
-            <h2>Key Mapping Configuration</h2>
-            <button id="back-to-adaptive-btn" class="btn-secondary">← Back to Adaptive Mode</button>
+        <!-- Unified Hotkey Configuration Panel -->
+        <div id="hotkeys-panel" class="panel" style="display: none;">
+            <div class="panel-header">
+                <h2>Configure Hotkeys</h2>
+                <button id="back-from-hotkeys-btn" class="btn-secondary">← Back</button>
+            </div>
 
             <div class="settings-section">
-                <h3>Customize Key Mappings</h3>
-                <p>Assign keyboard keys to each just intonation ratio. The prime ratios are fixed - choose which keystroke you want for each one.</p>
-
+                <h3>Note Keys — Prime Ratios</h3>
+                <p>Assign keyboard keys to each just intonation ratio.</p>
                 <div class="mapping-grid">
                     <div class="mapping-column">
-                        <h4>Prime Ratios (Numbers)</h4>
+                        <h4>Upward ratios</h4>
                         <div id="prime-mappings"></div>
                     </div>
                     <div class="mapping-column">
-                        <h4>Reciprocals (Letters)</h4>
+                        <h4>Downward ratios</h4>
                         <div id="reciprocal-mappings"></div>
                     </div>
                 </div>
-
-                <div class="mapping-actions">
-                    <button id="reset-mappings-btn" class="btn-secondary">Reset to Defaults</button>
-                    <button id="save-mappings-btn" class="btn-primary">Save & Continue</button>
-                </div>
             </div>
 
             <div class="settings-section">
-                <h3>Submit Key</h3>
-                <p>Choose which key submits your answer (default: `)</p>
-                <div style="margin-top: 10px;">
-                    <label>
-                        Submit Key:
-                        <input type="text" id="submit-key-input" maxlength="1" value="`" style="width: 50px; text-align: center; margin-left: 10px;">
-                    </label>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chord + Grid Hotkeys Configuration Panel -->
-        <div id="chord-grid-hotkeys-panel" class="panel" style="display: none;">
-            <h2>Chord + Grid Hotkey Configuration</h2>
-            <button id="back-to-chord-grid-from-hotkeys-btn" class="btn-secondary">← Back to Chord + Grid</button>
-
-            <div class="settings-section">
-                <h3>Grid Movement Keys</h3>
-                <p>Assign keyboard keys for grid movement.</p>
+                <h3>Special Keys</h3>
                 <div class="mapping-grid">
                     <div class="mapping-column">
                         <div class="mapping-item">
-                            <label>Move Left: <input type="text" id="cg-move-left-input" maxlength="1" value="a" style="width: 50px; text-align: center; margin-left: 10px;"></label>
+                            <label>Enter Note (submit interval):
+                                <input type="text" id="submit-key-input" maxlength="1" value="`" style="width: 50px; text-align: center; margin-left: 10px;">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Grid Movement Keys</h3>
+                <div class="mapping-grid">
+                    <div class="mapping-column">
+                        <div class="mapping-item">
+                            <label>Move Left:
+                                <input type="text" id="cg-move-left-input" maxlength="1" value="a" style="width: 50px; text-align: center; margin-left: 10px;">
+                            </label>
                         </div>
                         <div class="mapping-item">
-                            <label>Move Up: <input type="text" id="cg-move-up-input" maxlength="1" value="s" style="width: 50px; text-align: center; margin-left: 10px;"></label>
+                            <label>Move Up:
+                                <input type="text" id="cg-move-up-input" maxlength="1" value="s" style="width: 50px; text-align: center; margin-left: 10px;">
+                            </label>
                         </div>
                         <div class="mapping-item">
-                            <label>Move Down: <input type="text" id="cg-move-down-input" maxlength="1" value="d" style="width: 50px; text-align: center; margin-left: 10px;"></label>
+                            <label>Move Down:
+                                <input type="text" id="cg-move-down-input" maxlength="1" value="d" style="width: 50px; text-align: center; margin-left: 10px;">
+                            </label>
                         </div>
                         <div class="mapping-item">
-                            <label>Move Right: <input type="text" id="cg-move-right-input" maxlength="1" value="f" style="width: 50px; text-align: center; margin-left: 10px;"></label>
+                            <label>Move Right:
+                                <input type="text" id="cg-move-right-input" maxlength="1" value="f" style="width: 50px; text-align: center; margin-left: 10px;">
+                            </label>
                         </div>
                     </div>
                     <div class="mapping-column">
@@ -359,13 +358,14 @@
                                 <input type="text" id="cg-capture-key-input" maxlength="10" value="Tab" style="width: 80px; text-align: center; margin-left: 10px;" placeholder="e.g. Tab, g">
                             </label>
                         </div>
-                        <p style="margin-top: 8px; font-size: 0.85em; color: #666;">Enter a single character (e.g. <code>g</code>) or <code>Tab</code> for the Tab key.</p>
+                        <p style="margin-top: 8px; font-size: 0.85em; color: #666;">Enter a single character or <code>Tab</code> for the Tab key.</p>
                     </div>
                 </div>
-                <div class="mapping-actions">
-                    <button id="reset-cg-hotkeys-btn" class="btn-secondary">Reset to Defaults</button>
-                    <button id="save-cg-hotkeys-btn" class="btn-primary">Save & Continue</button>
-                </div>
+            </div>
+
+            <div class="mapping-actions">
+                <button id="reset-hotkeys-btn" class="btn-secondary">Reset All to Defaults</button>
+                <button id="save-hotkeys-btn" class="btn-primary">Save & Continue</button>
             </div>
         </div>
 
