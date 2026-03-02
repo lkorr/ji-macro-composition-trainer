@@ -2715,75 +2715,83 @@ function nextAdaptiveChordQuestion() {
     playChordAudio(expectedIntervals);
 }
 
-// Check and unlock next chord
-function checkAndUnlockNextChord() {
-    // Get current settings
-    const currentMasteryThreshold = getCurrentMasteryThreshold();
-    const currentMinAttempts = getCurrentMinAttemptsForMastery();
-    const currentWindow = getCurrentRollingAverageWindow();
+// Check mastery and unlock next chord (generic)
+// opts: { activeChords, allSorted, statsObj, disabledSet, getMasteryThreshold, getMinAttempts, getRollingWindow,
+//         getCurrentNewChord, setCurrentNewChord, resetDrillCount, getLevel, setLevel,
+//         updateLevelDisplay, feedbackEl, drillTarget, saveFunc, periodicCounter }
+function checkAndUnlockNextChordGeneric(opts) {
+    const threshold = opts.getMasteryThreshold();
+    const minAttempts = opts.getMinAttempts();
+    const window = opts.getRollingWindow();
 
-    // Check if all active (non-disabled) chords are mastered
     let allMastered = true;
-    for (const chord of activeChords) {
-        if (disabledChords.has(chord.key)) continue;
-        const stats = chordStats[chord.key];
+    for (const chord of opts.activeChords) {
+        if (opts.disabledSet.has(chord.key)) continue;
+        const stats = opts.statsObj[chord.key];
         if (!stats) continue;
 
-        // Calculate average using only the most recent N attempts (rolling window)
-        const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
+        const recentTimesWindow = stats.recentTimes.slice(-window);
         const avgRecent = recentTimesWindow.length > 0
             ? recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length
             : 999;
 
-        const isMastered = stats.attempts >= currentMinAttempts && avgRecent < currentMasteryThreshold;
+        const isMastered = stats.attempts >= minAttempts && avgRecent < threshold;
         stats.mastered = isMastered;
-
-        if (!isMastered) {
-            allMastered = false;
-        }
+        if (!isMastered) allMastered = false;
     }
 
-    // If all mastered, unlock next chord
-    if (allMastered && activeChords.length < allChordsSorted.length && !currentNewChord) {
-        const activeKeys = new Set(activeChords.map(c => c.key));
-        const nextChord = allChordsSorted.find(c => !activeKeys.has(c.key));
+    if (allMastered && opts.activeChords.length < opts.allSorted.length && !opts.getCurrentNewChord()) {
+        const activeKeys = new Set(opts.activeChords.map(c => c.key));
+        const nextChord = opts.allSorted.find(c => !activeKeys.has(c.key));
 
         if (nextChord) {
-            // Don't add to active chords yet - start drilling first
-            currentNewChord = nextChord.key;
-            newChordDrillCount = 0;
+            opts.setCurrentNewChord(nextChord.key);
+            opts.resetDrillCount();
 
-            // Check if this chord introduces a new base chord
             const nextBaseKey = getBaseChordForGrouping(nextChord.key);
-            const currentBases = getUniqueBaseChords(activeChords);
+            const currentBases = getUniqueBaseChords(opts.activeChords);
             const isNewBaseChord = !currentBases.has(nextBaseKey);
 
             if (isNewBaseChord) {
-                adaptiveChordLevel = currentBases.size + 1;
+                opts.setLevel(currentBases.size + 1);
             }
-            updateGameChordLevelDisplay();
+            opts.updateLevelDisplay();
 
-            // Show notification
-            const posInfo = nextChord.positionLabel ? ` ${nextChord.positionLabel}` : '';
-            if (isNewBaseChord) {
-                const baseName = CHORD_NAMES[nextBaseKey] || nextBaseKey;
-                feedbackEl.innerHTML = `<strong>🎉 Level ${adaptiveChordLevel}! New chord unlocked: ${baseName}!</strong><br>${nextChord.name}${posInfo} (${nextChord.chordKey})<br><em>Practice this chord ${newChordDrillTarget} times before it's added to the mix</em>`;
-            } else {
-                feedbackEl.innerHTML = `<strong>New variant unlocked: ${nextChord.name}${posInfo}!</strong><br>(${nextChord.chordKey})<br><em>Practice this chord ${newChordDrillTarget} times before it's added to the mix</em>`;
+            const fb = opts.feedbackEl;
+            if (fb) {
+                const posInfo = nextChord.positionLabel ? ` ${nextChord.positionLabel}` : '';
+                if (isNewBaseChord) {
+                    const baseName = CHORD_NAMES[nextBaseKey] || nextBaseKey;
+                    fb.innerHTML = `<strong>🎉 Level ${opts.getLevel()}! New chord unlocked: ${baseName}!</strong><br>${nextChord.name}${posInfo} (${nextChord.chordKey})<br><em>Practice this chord ${opts.drillTarget} times before it's added to the mix</em>`;
+                } else {
+                    fb.innerHTML = `<strong>New variant unlocked: ${nextChord.name}${posInfo}!</strong><br>(${nextChord.chordKey})<br><em>Practice ${opts.drillTarget} times before it's added to the mix</em>`;
+                }
+                fb.className = 'feedback';
+                fb.style.background = '#d1ecf1';
+                fb.style.color = '#0c5460';
             }
-            feedbackEl.className = 'feedback';
-            feedbackEl.style.background = '#d1ecf1';
-            feedbackEl.style.color = '#0c5460';
 
-            // Save progress
-            saveAdaptiveChordProgress();
+            opts.saveFunc();
         }
     }
 
-    // Save progress periodically
-    if (questionCount % 5 === 0) {
-        saveAdaptiveChordProgress();
+    if (opts.periodicCounter() % 5 === 0) {
+        opts.saveFunc();
     }
+}
+
+function checkAndUnlockNextChord() {
+    checkAndUnlockNextChordGeneric({
+        activeChords, allSorted: allChordsSorted, statsObj: chordStats, disabledSet: disabledChords,
+        getMasteryThreshold: getCurrentMasteryThreshold, getMinAttempts: getCurrentMinAttemptsForMastery,
+        getRollingWindow: getCurrentRollingAverageWindow,
+        getCurrentNewChord: () => currentNewChord, setCurrentNewChord: v => { currentNewChord = v; },
+        resetDrillCount: () => { newChordDrillCount = 0; },
+        getLevel: () => adaptiveChordLevel, setLevel: v => { adaptiveChordLevel = v; },
+        updateLevelDisplay: updateGameChordLevelDisplay,
+        feedbackEl, drillTarget: newChordDrillTarget,
+        saveFunc: saveAdaptiveChordProgress, periodicCounter: () => questionCount
+    });
 }
 
 // Update adaptive chord level display in settings panel
@@ -4147,66 +4155,19 @@ function selectWeightedRandomCGChord() {
     });
 }
 
-// Check and unlock next chord in chord-grid mode
 function checkAndUnlockNextCGChord() {
-    const currentThreshold = getCGMasteryThreshold();
-    const currentMinAttempts = getCGMinAttempts();
-    const currentWindow = getCGRollingWindow();
-
-    let allMastered = true;
-    for (const chord of cgActiveChords) {
-        const stats = cgChordStats[chord.key];
-        if (!stats) continue;
-
-        const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
-        const avgRecent = recentTimesWindow.length > 0
-            ? recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length
-            : 999;
-
-        const isMastered = stats.attempts >= currentMinAttempts && avgRecent < currentThreshold;
-        stats.mastered = isMastered;
-        if (!isMastered && !cgDisabledChords.has(chord.key)) allMastered = false;
-    }
-
-    if (allMastered && cgActiveChords.length < allChordsSorted.length && !cgCurrentNewChord) {
-        const activeKeys = new Set(cgActiveChords.map(c => c.key));
-        const nextChord = allChordsSorted.find(c => !activeKeys.has(c.key));
-
-        if (nextChord) {
-            cgCurrentNewChord = nextChord.key;
-            cgNewChordDrillCount = 0;
-
-            // Check if this chord introduces a new base chord
-            const nextBaseKey = getBaseChordForGrouping(nextChord.key);
-            const currentBases = getUniqueBaseChords(cgActiveChords);
-            const isNewBaseChord = !currentBases.has(nextBaseKey);
-
-            if (isNewBaseChord) {
-                cgAdaptiveLevel = currentBases.size + 1;
-            }
-            updateCGLevelDisplay();
-
-            const feedbackEl = document.getElementById('chord-grid-feedback');
-            if (feedbackEl) {
-                const cgPosInfo = nextChord.positionLabel ? ` ${nextChord.positionLabel}` : '';
-                if (isNewBaseChord) {
-                    const baseName = CHORD_NAMES[nextBaseKey] || nextBaseKey;
-                    feedbackEl.innerHTML = `<strong>Level ${cgAdaptiveLevel}! New chord unlocked: ${baseName}!</strong><br>${nextChord.name}${cgPosInfo} (${nextChord.chordKey})<br><em>Practice ${cgNewChordDrillTarget} times before it's added to the mix</em>`;
-                } else {
-                    feedbackEl.innerHTML = `<strong>New variant unlocked: ${nextChord.name}${cgPosInfo}!</strong><br>(${nextChord.chordKey})<br><em>Practice ${cgNewChordDrillTarget} times before it's added to the mix</em>`;
-                }
-                feedbackEl.className = 'feedback';
-                feedbackEl.style.background = '#d1ecf1';
-                feedbackEl.style.color = '#0c5460';
-            }
-
-            saveCGAdaptiveProgress();
-        }
-    }
-
-    if (chordGridScore % 5 === 0) {
-        saveCGAdaptiveProgress();
-    }
+    checkAndUnlockNextChordGeneric({
+        activeChords: cgActiveChords, allSorted: allChordsSorted, statsObj: cgChordStats, disabledSet: cgDisabledChords,
+        getMasteryThreshold: getCGMasteryThreshold, getMinAttempts: getCGMinAttempts,
+        getRollingWindow: getCGRollingWindow,
+        getCurrentNewChord: () => cgCurrentNewChord, setCurrentNewChord: v => { cgCurrentNewChord = v; },
+        resetDrillCount: () => { cgNewChordDrillCount = 0; },
+        getLevel: () => cgAdaptiveLevel, setLevel: v => { cgAdaptiveLevel = v; },
+        updateLevelDisplay: updateCGLevelDisplay,
+        feedbackEl: document.getElementById('chord-grid-feedback'),
+        drillTarget: cgNewChordDrillTarget,
+        saveFunc: saveCGAdaptiveProgress, periodicCounter: () => chordGridScore
+    });
 }
 
 // End the chord-grid game
