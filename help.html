@@ -697,11 +697,17 @@
 
         <h3>What EDO is best for JI composition?</h3>
         <p>
-            For 5-limit JI (primes 2, 3, 5): <strong>31-EDO</strong> is excellent.
-            For 7-limit (adding 7): <strong>31</strong> or <strong>72-EDO</strong>.
-            For 11-limit (adding 11): <strong>72-EDO</strong> covers it very well.
-            The default preset uses <strong>37-EDO</strong> as a good practical balance across 5- and 7-limit intervals.
-            12-TET approximates 7/4 and 11/8 quite coarsely.
+            <strong>31-EDO</strong>, <strong>41-EDO</strong>, and <strong>53-EDO</strong> are all strong choices.
+            31 covers 5- and 7-limit JI very well and has a manageable step size.
+            41 adds better 11-limit approximations. 53 is extremely accurate across all prime limits up to 13
+            but has very small steps, which can make interval entry slower.
+        </p>
+        <p>
+            One practical constraint: a standard MIDI piano roll has 128 notes (C−1 to G9).
+            In 53-EDO that covers roughly 2.4 octaves — you may find yourself running out of
+            pitch space for wide-range writing. 31-EDO fits about 4 octaves comfortably in the
+            same range, and 41-EDO fits around 3. For most harmonic work 31 or 41 is the
+            practical sweet spot.
         </p>
 
         <hr class="section-divider">
