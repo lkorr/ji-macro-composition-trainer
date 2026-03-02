@@ -2099,54 +2099,51 @@ function updateGameIntervalProgress() {
     progressStats.innerHTML = html;
 }
 
-// Update game chord progress display (during adaptive chord game)
-function updateGameChordProgress() {
-    const progressContainer = document.getElementById('game-interval-progress');
-    const progressStats = document.getElementById('game-progress-stats');
-
+// Generic in-game chord progress display
+// opts: { containerId, statsElId, activeChords, allSorted, statsObj, disabledSet, collapsedSet,
+//         getMasteryThreshold, getMinAttempts, getRollingWindow, saveFunc, updateFunc,
+//         currentNewChord, drillCount, drillTarget, dataMode, guardFunc }
+function updateGameChordProgressGeneric(opts) {
+    const progressContainer = document.getElementById(opts.containerId);
+    const progressStats = document.getElementById(opts.statsElId);
     if (!progressContainer || !progressStats) return;
 
-    // Only show in adaptive chord mode
-    if (gameMode !== 'adaptive-chord') {
+    if (opts.guardFunc && !opts.guardFunc()) {
         progressContainer.style.display = 'none';
         return;
     }
 
     progressContainer.style.display = 'block';
 
-    const currentMasteryThreshold = getCurrentMasteryThreshold();
-    const currentMinAttempts = getCurrentMinAttemptsForMastery();
-    const currentWindow = getCurrentRollingAverageWindow();
-
-    initDefaultCollapsedState(activeChords, collapsedChordGroups);
+    initDefaultCollapsedState(opts.activeChords, opts.collapsedSet);
 
     let html = buildGroupedChordHTML({
-        chordList: activeChords,
-        statsObj: chordStats,
-        disabledSet: disabledChords,
-        collapsedSet: collapsedChordGroups,
+        chordList: opts.activeChords,
+        statsObj: opts.statsObj,
+        disabledSet: opts.disabledSet,
+        collapsedSet: opts.collapsedSet,
         cssPrefix: 'game-stat',
-        masteryThreshold: currentMasteryThreshold,
-        minAttempts: currentMinAttempts,
-        rollingWindow: currentWindow,
+        masteryThreshold: opts.getMasteryThreshold(),
+        minAttempts: opts.getMinAttempts(),
+        rollingWindow: opts.getRollingWindow(),
         showIntervals: true,
-        dataMode: 'chord'
+        dataMode: opts.dataMode
     });
 
-    // Show drill progress if drilling (outside grouping)
-    if (currentNewChord) {
-        const newChord = allChordsSorted.find(c => c.key === currentNewChord);
+    const newChordKey = opts.currentNewChord();
+    if (newChordKey) {
+        const newChord = opts.allSorted.find(c => c.key === newChordKey);
         if (newChord) {
-            const newChordIntervalsDisplay = newChord.expectedIntervals.map(i => `${i.num}/${i.denom}`).join(', ');
-            const newChordPosInfo = newChord.positionLabel ? ` <small>${newChord.positionLabel}</small>` : '';
+            const intervalsDisplay = newChord.expectedIntervals.map(i => `${i.num}/${i.denom}`).join(', ');
+            const posInfo = newChord.positionLabel ? ` <small>${newChord.positionLabel}</small>` : '';
             html += `
                 <div class="game-stat-item drilling">
-                    <div class="game-stat-interval">${newChord.name}${newChordPosInfo}</div>
+                    <div class="game-stat-interval">${newChord.name}${posInfo}</div>
                     <div class="game-stat-details">
-                        <span class="game-stat-cents">${newChordIntervalsDisplay}</span>
+                        <span class="game-stat-cents">${intervalsDisplay}</span>
                     </div>
                     <div class="game-stat-info">
-                        <span class="game-stat-badge drilling">Drilling: ${newChordDrillCount}/${newChordDrillTarget}</span>
+                        <span class="game-stat-badge drilling">Drilling: ${opts.drillCount()}/${opts.drillTarget}</span>
                     </div>
                 </div>
             `;
@@ -2156,12 +2153,25 @@ function updateGameChordProgress() {
     progressStats.innerHTML = html;
 
     attachChordGroupHandlers(progressStats, {
-        chordList: activeChords,
-        disabledSet: disabledChords,
-        collapsedSet: collapsedChordGroups,
-        saveFunc: saveAdaptiveChordProgress,
-        updateFunc: updateGameChordProgress,
-        dataMode: 'chord'
+        chordList: opts.activeChords,
+        disabledSet: opts.disabledSet,
+        collapsedSet: opts.collapsedSet,
+        saveFunc: opts.saveFunc,
+        updateFunc: opts.updateFunc,
+        dataMode: opts.dataMode
+    });
+}
+
+function updateGameChordProgress() {
+    updateGameChordProgressGeneric({
+        containerId: 'game-interval-progress', statsElId: 'game-progress-stats',
+        activeChords, allSorted: allChordsSorted, statsObj: chordStats,
+        disabledSet: disabledChords, collapsedSet: collapsedChordGroups,
+        getMasteryThreshold: getCurrentMasteryThreshold, getMinAttempts: getCurrentMinAttemptsForMastery,
+        getRollingWindow: getCurrentRollingAverageWindow,
+        saveFunc: saveAdaptiveChordProgress, updateFunc: updateGameChordProgress,
+        currentNewChord: () => currentNewChord, drillCount: () => newChordDrillCount, drillTarget: newChordDrillTarget,
+        dataMode: 'chord', guardFunc: () => gameMode === 'adaptive-chord'
     });
 }
 
@@ -2794,30 +2804,22 @@ function checkAndUnlockNextChord() {
     });
 }
 
-// Update adaptive chord level display in settings panel
-function updateAdaptiveChordLevelDisplay() {
-    const levelNumberEl = document.getElementById('adaptive-chord-level-number');
-    if (levelNumberEl) {
-        levelNumberEl.textContent = adaptiveChordLevel;
-    }
-    // Refresh open detail panel
-    const detailPanel = document.getElementById('adaptive-chord-level-detail');
-    if (detailPanel && detailPanel.style.display !== 'none') {
-        detailPanel.innerHTML = buildLevelDetailHTML(activeChords);
+// Update level number and refresh detail panel if open
+function updateLevelDisplayElements(numberElId, detailElId, level, chordsList) {
+    const numberEl = document.getElementById(numberElId);
+    if (numberEl) numberEl.textContent = level;
+    const detailEl = document.getElementById(detailElId);
+    if (detailEl && detailEl.style.display !== 'none') {
+        detailEl.innerHTML = buildLevelDetailHTML(chordsList);
     }
 }
 
-// Update game chord level display in game panel
+function updateAdaptiveChordLevelDisplay() {
+    updateLevelDisplayElements('adaptive-chord-level-number', 'adaptive-chord-level-detail', adaptiveChordLevel, activeChords);
+}
+
 function updateGameChordLevelDisplay() {
-    const gameLevelNumberEl = document.getElementById('game-level-number');
-    if (gameLevelNumberEl) {
-        gameLevelNumberEl.textContent = adaptiveChordLevel;
-    }
-    // Refresh open detail panel
-    const detailPanel = document.getElementById('game-level-detail');
-    if (detailPanel && detailPanel.style.display !== 'none') {
-        detailPanel.innerHTML = buildLevelDetailHTML(activeChords);
-    }
+    updateLevelDisplayElements('game-level-number', 'game-level-detail', adaptiveChordLevel, activeChords);
 }
 
 // Build HTML showing all unlocked base chords and their variants
@@ -3076,50 +3078,60 @@ function initDefaultCollapsedState(chordList, collapsedSet) {
 
 // ===== END CHORD GROUPING HELPERS =====
 
-// Update adaptive chord stats display
-function updateAdaptiveChordStats() {
-    const statsEl = document.getElementById('adaptive-chord-stats');
+// Generic settings-panel stats display
+// opts: { statsElId, activeChords, allSorted, statsObj, disabledSet, collapsedSet,
+//         getMasteryThreshold, getMinAttempts, getRollingWindow, loadFunc, saveFunc, updateFunc, updateLevelFunc, dataMode }
+function updateChordStatsGeneric(opts) {
+    const statsEl = document.getElementById(opts.statsElId);
     if (!statsEl) return;
 
-    updateAdaptiveChordLevelDisplay();
+    opts.updateLevelFunc();
 
-    if (activeChords.length === 0) {
-        if (!loadAdaptiveChordProgress() || activeChords.length === 0) {
+    if (opts.activeChords.length === 0) {
+        if (!opts.loadFunc() || opts.activeChords.length === 0) {
             statsEl.innerHTML = '<p>Click "Start/Continue" to begin!</p>';
             return;
         }
     }
 
-    const currentMasteryThreshold = getCurrentMasteryThreshold();
-    const currentMinAttempts = getCurrentMinAttemptsForMastery();
-    const currentWindow = getCurrentRollingAverageWindow();
-
-    initDefaultCollapsedState(activeChords, collapsedChordGroups);
+    initDefaultCollapsedState(opts.activeChords, opts.collapsedSet);
 
     let html = buildGroupedChordHTML({
-        chordList: activeChords,
-        statsObj: chordStats,
-        disabledSet: disabledChords,
-        collapsedSet: collapsedChordGroups,
+        chordList: opts.activeChords,
+        statsObj: opts.statsObj,
+        disabledSet: opts.disabledSet,
+        collapsedSet: opts.collapsedSet,
         cssPrefix: 'stat',
-        masteryThreshold: currentMasteryThreshold,
-        minAttempts: currentMinAttempts,
-        rollingWindow: currentWindow,
+        masteryThreshold: opts.getMasteryThreshold(),
+        minAttempts: opts.getMinAttempts(),
+        rollingWindow: opts.getRollingWindow(),
         showIntervals: false,
-        dataMode: 'chord'
+        dataMode: opts.dataMode
     });
 
-    const enabledCount = activeChords.filter(c => !disabledChords.has(c.key)).length;
-    html += `<p class="progress-text">Active chords: ${enabledCount} / ${allChordsSorted.length} (${activeChords.length} unlocked)</p>`;
-
+    const enabledCount = opts.activeChords.filter(c => !opts.disabledSet.has(c.key)).length;
+    html += `<p class="progress-text">Active chords: ${enabledCount} / ${opts.allSorted.length} (${opts.activeChords.length} unlocked)</p>`;
     statsEl.innerHTML = html;
 
     attachChordGroupHandlers(statsEl, {
-        chordList: activeChords,
-        disabledSet: disabledChords,
-        collapsedSet: collapsedChordGroups,
-        saveFunc: saveAdaptiveChordProgress,
-        updateFunc: updateAdaptiveChordStats,
+        chordList: opts.activeChords,
+        disabledSet: opts.disabledSet,
+        collapsedSet: opts.collapsedSet,
+        saveFunc: opts.saveFunc,
+        updateFunc: opts.updateFunc,
+        dataMode: opts.dataMode
+    });
+}
+
+function updateAdaptiveChordStats() {
+    updateChordStatsGeneric({
+        statsElId: 'adaptive-chord-stats',
+        activeChords, allSorted: allChordsSorted, statsObj: chordStats,
+        disabledSet: disabledChords, collapsedSet: collapsedChordGroups,
+        getMasteryThreshold: getCurrentMasteryThreshold, getMinAttempts: getCurrentMinAttemptsForMastery,
+        getRollingWindow: getCurrentRollingAverageWindow,
+        loadFunc: loadAdaptiveChordProgress, saveFunc: saveAdaptiveChordProgress,
+        updateFunc: updateAdaptiveChordStats, updateLevelFunc: updateAdaptiveChordLevelDisplay,
         dataMode: 'chord'
     });
 }
@@ -4019,127 +4031,34 @@ function getCGNonMasteredRate() {
     return input ? parseInt(input.value) : 80;
 }
 
-// Update chord-grid level display
 function updateCGLevelDisplay() {
-    const levelEl = document.getElementById('cg-level-number');
-    if (levelEl) levelEl.textContent = cgAdaptiveLevel;
-    const gameLevelEl = document.getElementById('cg-game-level-number');
-    if (gameLevelEl) gameLevelEl.textContent = cgAdaptiveLevel;
-    // Refresh open detail panels
-    const detailPanel = document.getElementById('cg-level-detail');
-    if (detailPanel && detailPanel.style.display !== 'none') {
-        detailPanel.innerHTML = buildLevelDetailHTML(cgActiveChords);
-    }
-    const gameDetailPanel = document.getElementById('cg-game-level-detail');
-    if (gameDetailPanel && gameDetailPanel.style.display !== 'none') {
-        gameDetailPanel.innerHTML = buildLevelDetailHTML(cgActiveChords);
-    }
+    updateLevelDisplayElements('cg-level-number', 'cg-level-detail', cgAdaptiveLevel, cgActiveChords);
+    updateLevelDisplayElements('cg-game-level-number', 'cg-game-level-detail', cgAdaptiveLevel, cgActiveChords);
 }
 
-// Update chord-grid stats display
 function updateCGStats() {
-    const statsEl = document.getElementById('cg-stats');
-    if (!statsEl) return;
-
-    updateCGLevelDisplay();
-
-    if (cgActiveChords.length === 0) {
-        if (!loadCGAdaptiveProgress() || cgActiveChords.length === 0) {
-            statsEl.innerHTML = '<p>Click "Start / Continue" to begin!</p>';
-            return;
-        }
-    }
-
-    const currentThreshold = getCGMasteryThreshold();
-    const currentMinAttempts = getCGMinAttempts();
-    const currentWindow = getCGRollingWindow();
-
-    initDefaultCollapsedState(cgActiveChords, collapsedCGChordGroups);
-
-    let html = buildGroupedChordHTML({
-        chordList: cgActiveChords,
-        statsObj: cgChordStats,
-        disabledSet: cgDisabledChords,
-        collapsedSet: collapsedCGChordGroups,
-        cssPrefix: 'stat',
-        masteryThreshold: currentThreshold,
-        minAttempts: currentMinAttempts,
-        rollingWindow: currentWindow,
-        showIntervals: false,
-        dataMode: 'cg'
-    });
-
-    const cgEnabledCount = cgActiveChords.filter(c => !cgDisabledChords.has(c.key)).length;
-    html += `<p class="progress-text">Active chords: ${cgEnabledCount} / ${allChordsSorted.length} (${cgActiveChords.length} unlocked)</p>`;
-    statsEl.innerHTML = html;
-
-    attachChordGroupHandlers(statsEl, {
-        chordList: cgActiveChords,
-        disabledSet: cgDisabledChords,
-        collapsedSet: collapsedCGChordGroups,
-        saveFunc: saveCGAdaptiveProgress,
-        updateFunc: updateCGStats,
+    updateChordStatsGeneric({
+        statsElId: 'cg-stats',
+        activeChords: cgActiveChords, allSorted: allChordsSorted, statsObj: cgChordStats,
+        disabledSet: cgDisabledChords, collapsedSet: collapsedCGChordGroups,
+        getMasteryThreshold: getCGMasteryThreshold, getMinAttempts: getCGMinAttempts,
+        getRollingWindow: getCGRollingWindow,
+        loadFunc: loadCGAdaptiveProgress, saveFunc: saveCGAdaptiveProgress,
+        updateFunc: updateCGStats, updateLevelFunc: updateCGLevelDisplay,
         dataMode: 'cg'
     });
 }
 
-// Update chord-grid game progress display (in-game)
 function updateCGGameProgress() {
-    const progressContainer = document.getElementById('cg-game-interval-progress');
-    const progressStats = document.getElementById('cg-game-progress-stats');
-
-    if (!progressContainer || !progressStats) return;
-
-    progressContainer.style.display = 'block';
-
-    const currentThreshold = getCGMasteryThreshold();
-    const currentMinAttempts = getCGMinAttempts();
-    const currentWindow = getCGRollingWindow();
-
-    initDefaultCollapsedState(cgActiveChords, collapsedCGChordGroups);
-
-    let html = buildGroupedChordHTML({
-        chordList: cgActiveChords,
-        statsObj: cgChordStats,
-        disabledSet: cgDisabledChords,
-        collapsedSet: collapsedCGChordGroups,
-        cssPrefix: 'game-stat',
-        masteryThreshold: currentThreshold,
-        minAttempts: currentMinAttempts,
-        rollingWindow: currentWindow,
-        showIntervals: true,
-        dataMode: 'cg'
-    });
-
-    // Show drill progress if drilling (outside grouping)
-    if (cgCurrentNewChord) {
-        const newChord = allChordsSorted.find(c => c.key === cgCurrentNewChord);
-        if (newChord) {
-            const newChordIntervalsDisplay = newChord.expectedIntervals.map(i => `${i.num}/${i.denom}`).join(', ');
-            const newChordPosInfo = newChord.positionLabel ? ` <small>${newChord.positionLabel}</small>` : '';
-            html += `
-                <div class="game-stat-item drilling">
-                    <div class="game-stat-interval">${newChord.name}${newChordPosInfo}</div>
-                    <div class="game-stat-details">
-                        <span class="game-stat-cents">${newChordIntervalsDisplay}</span>
-                    </div>
-                    <div class="game-stat-info">
-                        <span class="game-stat-badge drilling">Drilling: ${cgNewChordDrillCount}/${cgNewChordDrillTarget}</span>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    progressStats.innerHTML = html;
-
-    attachChordGroupHandlers(progressStats, {
-        chordList: cgActiveChords,
-        disabledSet: cgDisabledChords,
-        collapsedSet: collapsedCGChordGroups,
-        saveFunc: saveCGAdaptiveProgress,
-        updateFunc: updateCGGameProgress,
-        dataMode: 'cg'
+    updateGameChordProgressGeneric({
+        containerId: 'cg-game-interval-progress', statsElId: 'cg-game-progress-stats',
+        activeChords: cgActiveChords, allSorted: allChordsSorted, statsObj: cgChordStats,
+        disabledSet: cgDisabledChords, collapsedSet: collapsedCGChordGroups,
+        getMasteryThreshold: getCGMasteryThreshold, getMinAttempts: getCGMinAttempts,
+        getRollingWindow: getCGRollingWindow,
+        saveFunc: saveCGAdaptiveProgress, updateFunc: updateCGGameProgress,
+        currentNewChord: () => cgCurrentNewChord, drillCount: () => cgNewChordDrillCount, drillTarget: cgNewChordDrillTarget,
+        dataMode: 'cg', guardFunc: null
     });
 }
 
