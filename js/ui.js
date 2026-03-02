@@ -19,6 +19,7 @@ const keyboardLegendGrid = document.getElementById('keyboard-legend-grid');
 const ALL_PANEL_IDS = [
     'main-menu-panel', 'adaptive-mode-panel', 'adaptive-chord-mode-panel',
     'chord-grid-mode-panel', 'chord-grid-game-panel',
+    'onslaught-mode-panel', 'onslaught-game-panel',
     'hotkeys-panel', 'game-panel'
 ];
 
@@ -59,6 +60,10 @@ function showGame() {
 function showChordGridMode() {
     showPanel('chord-grid-mode-panel');
     updateCGStats();
+}
+
+function showOnslaughtMode() {
+    showPanel('onslaught-mode-panel');
 }
 
 function showChordGridGame() {

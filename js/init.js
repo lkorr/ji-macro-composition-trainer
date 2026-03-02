@@ -103,6 +103,30 @@ if (selectIntervalModeBtn) {
     selectIntervalModeBtn.addEventListener('click', showAdaptiveMode);
 }
 
+const selectOnslaughtModeBtn = document.getElementById('select-onslaught-mode-btn');
+if (selectOnslaughtModeBtn) {
+    selectOnslaughtModeBtn.addEventListener('click', showOnslaughtMode);
+}
+
+const backToMainFromOnslaughtBtn = document.getElementById('back-to-main-from-onslaught-btn');
+if (backToMainFromOnslaughtBtn) {
+    backToMainFromOnslaughtBtn.addEventListener('click', showMainMenu);
+}
+
+const startOnslaughtBtn = document.getElementById('start-onslaught-btn');
+if (startOnslaughtBtn) {
+    startOnslaughtBtn.addEventListener('click', () => {
+        initAudio();
+        if (cgActiveChords.length === 0) initializeCGAdaptiveMode();
+        startOnslaughtGame();
+    });
+}
+
+const endOnslaughtBtn = document.getElementById('end-onslaught-btn');
+if (endOnslaughtBtn) {
+    endOnslaughtBtn.addEventListener('click', endOnslaughtGame);
+}
+
 const selectChordModeBtn = document.getElementById('select-chord-mode-btn');
 if (selectChordModeBtn) {
     selectChordModeBtn.addEventListener('click', showAdaptiveChordMode);
@@ -302,6 +326,13 @@ document.addEventListener('keydown', (event) => {
     if (chordGridGameActive) {
         if (event.key === 'Tab') event.preventDefault();
         handleChordGridKeyPress(event);
+    }
+});
+
+// Onslaught keydown listener
+document.addEventListener('keydown', (event) => {
+    if (onslaughtActive) {
+        handleOnslaughtKeyPress(event);
     }
 });
 

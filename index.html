@@ -26,6 +26,9 @@
                 <button id="select-chord-grid-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
                     🎯🎵 Chords + Grid Movement
                 </button>
+                <button id="select-onslaught-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
+                    ⚡ Onslaught Mode
+                </button>
             </div>
         </div>
 
@@ -369,6 +372,49 @@
             </div>
         </div>
 
+        <!-- Onslaught Mode Settings Panel -->
+        <div id="onslaught-mode-panel" class="panel" style="display: none;">
+            <div class="panel-header">
+                <h2>⚡ Onslaught Mode</h2>
+                <button id="back-to-main-from-onslaught-btn" class="btn-secondary">← Back to Main Menu</button>
+            </div>
+            <p style="color:#666; margin-bottom: 16px;">Chords appear on screen and fade away. Solve them before they expire! Uses your Chords + Grid chord pool.</p>
+
+            <div class="adaptive-settings">
+                <h3>Settings</h3>
+                <div class="setting-row">
+                    <label>Card Fade Time:
+                        <input type="number" id="onslaught-fade-time-input" min="5" max="120" step="1" value="15" class="small-number-input"> seconds
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Starting Spawn Interval:
+                        <input type="number" id="onslaught-spawn-interval-input" min="3" max="60" step="1" value="10" class="small-number-input"> seconds
+                        <span style="color:#888; font-size:0.85em; margin-left:8px;">(accelerates over time)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="adaptive-actions">
+                <button id="start-onslaught-btn" class="btn-primary large-btn">Start Onslaught</button>
+            </div>
+        </div>
+
+        <!-- Onslaught Game Panel -->
+        <div id="onslaught-game-panel" class="panel" style="display: none;">
+            <div class="game-panel-header">
+                <div class="onslaught-hud">
+                    <span class="score-label">Score: <strong id="onslaught-score">0</strong></span>
+                    <span class="score-label">Time: <span id="onslaught-timer">0:00</span></span>
+                </div>
+                <div class="header-buttons">
+                    <button id="end-onslaught-btn" class="btn-secondary">End Game</button>
+                </div>
+            </div>
+            <p class="onslaught-hint">Click a card to focus it, then type intervals. <strong>+1</strong> per chord solved, <strong>−1</strong> when a card expires.</p>
+            <div id="onslaught-cards-container" class="onslaught-cards-container"></div>
+        </div>
+
         <!-- Chord + Grid Mode Settings Panel -->
         <div id="chord-grid-mode-panel" class="panel" style="display: none;">
             <div class="panel-header">
@@ -606,7 +652,8 @@
     <script src="js/ui.js"></script>
     <script src="js/game-intervals.js"></script>
     <script src="js/game-chords.js"></script>
-<script src="js/game-chord-grid.js"></script>
+    <script src="js/game-chord-grid.js"></script>
+    <script src="js/game-onslaught.js"></script>
     <script src="js/init.js"></script>
 </body>
 </html>
