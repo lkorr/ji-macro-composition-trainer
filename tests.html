@@ -430,9 +430,38 @@
     const ascSorted = ascOnly.every((v, i) => i === 0 || ascOnly[i-1].complexity <= v.complexity);
     assert('Ascending intervals sorted by complexity', ascSorted);
 
-    // --- playSound function exists ---
-    group('Function Existence');
-    assert('buildSortedIntervals is a function', typeof buildSortedIntervals === 'function');
+    // --- formatElapsedTime ---
+    group('formatElapsedTime()');
+    // Test by passing a known start time
+    const testStart = Date.now() - 65400; // 65.4 seconds ago = 1:05.40
+    const formatted = formatElapsedTime(testStart);
+    assert('formatElapsedTime returns M:SS.CC format', /^\d+:\d{2}\.\d{2}$/.test(formatted));
+
+    // --- showPanel ---
+    group('showPanel()');
+    assert('showPanel is a function', typeof showPanel === 'function');
+    assert('ALL_PANEL_IDS is defined', Array.isArray(ALL_PANEL_IDS));
+    assert('ALL_PANEL_IDS has 8 panels', ALL_PANEL_IDS.length === 8);
+
+    // --- renderPianoRollSVG ---
+    group('renderPianoRollSVG()');
+    assert('renderPianoRollSVG is a function', typeof renderPianoRollSVG === 'function');
+
+    // --- Generic helpers exist ---
+    group('Generic Helper Functions');
+    assert('selectWeightedRandomChordFrom is a function', typeof selectWeightedRandomChordFrom === 'function');
+    assert('checkAndUnlockNextChordGeneric is a function', typeof checkAndUnlockNextChordGeneric === 'function');
+    assert('updateChordStatsGeneric is a function', typeof updateChordStatsGeneric === 'function');
+    assert('updateGameChordProgressGeneric is a function', typeof updateGameChordProgressGeneric === 'function');
+    assert('updateLevelDisplayElements is a function', typeof updateLevelDisplayElements === 'function');
+    assert('renderGridInto is a function', typeof renderGridInto === 'function');
+    assert('renderKeyboardLegendInto is a function', typeof renderKeyboardLegendInto === 'function');
+    assert('initializeChordAdaptive is a function', typeof initializeChordAdaptive === 'function');
+    assert('loadChordAdaptive is a function', typeof loadChordAdaptive === 'function');
+    assert('resumeFromChordLevelGeneric is a function', typeof resumeFromChordLevelGeneric === 'function');
+
+    // --- Original wrapper functions still exist ---
+    group('Wrapper Functions');
     assert('playSound is a function', typeof playSound === 'function');
     assert('gcd is a function', typeof gcd === 'function');
     assert('reduceFraction is a function', typeof reduceFraction === 'function');
@@ -448,6 +477,7 @@
     assert('selectWeightedRandomCGChord is a function', typeof selectWeightedRandomCGChord === 'function');
     assert('checkAndUnlockNextChord is a function', typeof checkAndUnlockNextChord === 'function');
     assert('checkAndUnlockNextCGChord is a function', typeof checkAndUnlockNextCGChord === 'function');
+    assert('buildSortedIntervals is a function', typeof buildSortedIntervals === 'function');
 
     // ==================== SUMMARY ====================
     const summaryEl = document.getElementById('summary');
