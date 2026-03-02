@@ -3581,23 +3581,21 @@ function captureTarget() {
     }
 }
 
-function renderGrid() {
-    const container = document.getElementById('grid-container');
+function renderGridInto(containerId, size, pRow, pCol, tRow, tCol) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
     container.innerHTML = '';
-    container.tabIndex = 0; // Make focusable
+    container.tabIndex = 0;
 
-    for (let row = 0; row < gridSize; row++) {
-        for (let col = 0; col < gridSize; col++) {
+    for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) {
             const cell = document.createElement('div');
             cell.className = 'grid-cell';
 
-            // Mark player position
-            if (row === playerRow && col === playerCol) {
+            if (row === pRow && col === pCol) {
                 cell.classList.add('player-cell');
                 cell.textContent = '◆';
-            }
-            // Mark target position
-            else if (row === targetRow && col === targetCol) {
+            } else if (row === tRow && col === tCol) {
                 cell.classList.add('target-cell');
                 cell.textContent = '●';
             }
@@ -3606,8 +3604,11 @@ function renderGrid() {
         }
     }
 
-    // Set grid template columns
-    container.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+}
+
+function renderGrid() {
+    renderGridInto('grid-container', gridSize, playerRow, playerCol, targetRow, targetCol);
 }
 
 function updateGridTimer() {
@@ -4801,31 +4802,8 @@ function handleChordGridChordKeypress(event, key) {
     }
 }
 
-// Render the chord-grid game grid
 function renderChordGrid() {
-    const container = document.getElementById('chord-grid-container');
-    if (!container) return;
-    container.innerHTML = '';
-    container.tabIndex = 0;
-
-    for (let row = 0; row < chordGridSize; row++) {
-        for (let col = 0; col < chordGridSize; col++) {
-            const cell = document.createElement('div');
-            cell.className = 'grid-cell';
-
-            if (row === chordGridPlayerRow && col === chordGridPlayerCol) {
-                cell.classList.add('player-cell');
-                cell.textContent = '◆';
-            } else if (row === chordGridTargetRow && col === chordGridTargetCol) {
-                cell.classList.add('target-cell');
-                cell.textContent = '●';
-            }
-
-            container.appendChild(cell);
-        }
-    }
-
-    container.style.gridTemplateColumns = `repeat(${chordGridSize}, 1fr)`;
+    renderGridInto('chord-grid-container', chordGridSize, chordGridPlayerRow, chordGridPlayerCol, chordGridTargetRow, chordGridTargetCol);
 }
 
 // Render piano roll for chord-grid mode
