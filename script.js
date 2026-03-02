@@ -2234,171 +2234,206 @@ function updateAdaptiveStats() {
 
 // ===== ADAPTIVE CHORD MODE FUNCTIONS =====
 
-// Initialize adaptive chord mode
-function initializeAdaptiveChordMode() {
-    // Initialize sorted chords (expand starting positions if enabled, include inversions if enabled)
-    initializeChordsSorted(randomStartingNote, includeInversions);
+// ===== GENERIC CHORD ADAPTIVE PERSISTENCE =====
+// All chord persistence functions are parameterized to work for both
+// chord mode and chord+grid mode.
 
-    // Initialize stats for all chords
-    chordStats = {};
-    for (const chord of allChordsSorted) {
-        chordStats[chord.key] = {
-            attempts: 0,
-            totalTime: 0,
-            recentTimes: [],
-            mastered: false,
-            lastSeenQuestion: -1,
-            chord: chord
-        };
+// Generic: initialize chord adaptive mode
+// p: { expandFlag, inversionsFlag, allSorted (ref), setAllSorted, setStats, setActive, setDrillCount,
+//      setNewChord, setTutorialActive, setTutorialIndex, setTutorialSeq, setLevel, saveFunc }
+function initializeChordAdaptive(p) {
+    const sorted = initializeChordsSorted(p.expandFlag, p.inversionsFlag);
+    p.setAllSorted(sorted);
+
+    const stats = {};
+    for (const chord of sorted) {
+        stats[chord.key] = { attempts: 0, totalTime: 0, recentTimes: [], mastered: false, lastSeenQuestion: -1, chord };
     }
+    p.setStats(stats);
 
-    // Start with the first chord entry (handles both expanded and non-expanded keys)
-    activeChords = [];
-    if (allChordsSorted.length > 0) {
-        activeChords.push(allChordsSorted[0]);
-    }
-
-    // Reset drill tracking
-    newChordDrillCount = 0;
-    currentNewChord = null;
-
-    // Set tutorial sequence dynamically
-    chordTutorialSequence = allChordsSorted.length > 0 ? [allChordsSorted[0].key] : ['4:5:6'];
-
-    // Set level to match number of base chords
-    adaptiveChordLevel = countBaseChords(activeChords);
-
-    // Save to localStorage
-    saveAdaptiveChordProgress();
+    const firstChords = sorted.length > 0 ? [sorted[0]] : [];
+    p.setActive(firstChords);
+    p.setDrillCount(0);
+    p.setNewChord(null);
+    p.setTutorialActive(true);
+    p.setTutorialIndex(0);
+    p.setTutorialSeq(sorted.length > 0 ? [sorted[0].key] : ['4:5:6']);
+    p.setLevel(countBaseChords(firstChords));
+    p.saveFunc();
 }
 
-// Load adaptive chord progress from localStorage
-function loadAdaptiveChordProgress() {
-    const saved = localStorage.getItem('ji_adaptive_chord_progress');
-    if (saved) {
-        try {
-            const data = JSON.parse(saved);
-            const savedExpandFlag = data.randomStartingNote || false;
+// Generic: load chord adaptive progress from localStorage
+// p: { storageKey, expandFlag, inversionsFlag, savedExpandFlagKey, savedStatsKey, savedActiveKey,
+//      savedLevelKey, savedTutIdxKey, savedTutActiveKey, savedDrillCountKey, savedNewChordKey, savedDisabledKey,
+//      setAllSorted, setStats, setActive, setLevel, setTutorialIndex, setTutorialActive,
+//      setDrillCount, setNewChord, setDisabled, setTutorialSeq, allSorted (getter) }
+function loadChordAdaptive(p) {
+    const saved = localStorage.getItem(p.storageKey);
+    if (!saved) return false;
+    try {
+        const data = JSON.parse(saved);
+        const savedExpandFlag = data[p.savedExpandFlagKey] || false;
+        const sorted = initializeChordsSorted(p.expandFlag, p.inversionsFlag);
+        p.setAllSorted(sorted);
+        p.setTutorialSeq(sorted.length > 0 ? [sorted[0].key] : ['4:5:6']);
 
-            // Initialize sorted chords with current flags
-            initializeChordsSorted(randomStartingNote, includeInversions);
-
-            // Set tutorial sequence dynamically
-            chordTutorialSequence = allChordsSorted.length > 0 ? [allChordsSorted[0].key] : ['4:5:6'];
-
-            // Check if expand flag changed - need migration
-            if (savedExpandFlag !== randomStartingNote) {
-                // Flag changed, migrate keys
-                const migratedStats = {};
-                const oldStats = data.chordStats || {};
-
-                if (randomStartingNote && !savedExpandFlag) {
-                    // Old keys are plain (e.g. "4:5:6"), new keys are compound (e.g. "4:5:6_sp0")
-                    for (const oldKey in oldStats) {
-                        const newKey = oldKey + '_sp0';
-                        migratedStats[newKey] = oldStats[oldKey];
-                    }
-                } else if (!randomStartingNote && savedExpandFlag) {
-                    // Old keys are compound (e.g. "4:5:6_sp0"), new keys are plain (e.g. "4:5:6")
-                    for (const oldKey in oldStats) {
-                        const newKey = oldKey.replace(/_sp\d+$/, '');
-                        // Only keep sp0 data (or first encountered) for plain key
-                        if (!migratedStats[newKey]) {
-                            migratedStats[newKey] = oldStats[oldKey];
-                        }
-                    }
-                }
-
-                chordStats = migratedStats;
-
-                // Migrate activeChords
-                const migratedActive = [];
-                const oldActive = data.activeChords || [];
-                for (const savedChord of oldActive) {
-                    const oldKey = savedChord.key || savedChord;
-                    let newKey;
-                    if (randomStartingNote && !savedExpandFlag) {
-                        newKey = oldKey + '_sp0';
-                    } else {
-                        newKey = oldKey.replace(/_sp\d+$/, '');
-                    }
-                    const chord = allChordsSorted.find(c => c.key === newKey);
-                    if (chord && !migratedActive.find(c => c.key === chord.key)) {
-                        migratedActive.push(chord);
-                    }
-                }
-                activeChords = migratedActive;
-
-                // Migrate currentNewChord
-                let oldNewChord = data.currentNewChord || null;
-                if (oldNewChord) {
-                    if (randomStartingNote && !savedExpandFlag) {
-                        oldNewChord = oldNewChord + '_sp0';
-                    } else {
-                        oldNewChord = oldNewChord.replace(/_sp\d+$/, '');
-                    }
-                }
-                currentNewChord = oldNewChord;
+        let stats, active, newChord;
+        if (savedExpandFlag !== p.expandFlag) {
+            // Migrate keys
+            const migratedStats = {};
+            const oldStats = data[p.savedStatsKey] || {};
+            if (p.expandFlag && !savedExpandFlag) {
+                for (const k in oldStats) migratedStats[k + '_sp0'] = oldStats[k];
             } else {
-                chordStats = data.chordStats || {};
-                activeChords = data.activeChords || [];
-                currentNewChord = data.currentNewChord || null;
+                for (const k in oldStats) { const nk = k.replace(/_sp\d+$/, ''); if (!migratedStats[nk]) migratedStats[nk] = oldStats[k]; }
             }
+            stats = migratedStats;
 
-            adaptiveChordLevel = data.adaptiveChordLevel || 1;
-            chordTutorialIndex = data.chordTutorialIndex !== undefined ? data.chordTutorialIndex : 0;
-            chordTutorialActive = data.chordTutorialActive !== undefined ? data.chordTutorialActive : true;
-            newChordDrillCount = data.newChordDrillCount || 0;
-
-            // Restore chord references in stats
-            for (const key in chordStats) {
-                const chord = allChordsSorted.find(c => c.key === key);
-                if (chord) {
-                    chordStats[key].chord = chord;
-                }
+            const migratedActive = [];
+            for (const sc of (data[p.savedActiveKey] || [])) {
+                const ok = sc.key || sc;
+                const nk = (p.expandFlag && !savedExpandFlag) ? ok + '_sp0' : ok.replace(/_sp\d+$/, '');
+                const c = sorted.find(x => x.key === nk);
+                if (c && !migratedActive.find(x => x.key === c.key)) migratedActive.push(c);
             }
+            active = migratedActive;
 
-            // Restore activeChords with full chord objects (if not already migrated)
-            if (!Array.isArray(activeChords[0]?.intervals)) {
-                activeChords = activeChords.map(savedChord => {
-                    const key = savedChord.key || savedChord;
-                    return allChordsSorted.find(c => c.key === key);
-                }).filter(c => c);
+            let onc = data[p.savedNewChordKey] || null;
+            if (onc) onc = (p.expandFlag && !savedExpandFlag) ? onc + '_sp0' : onc.replace(/_sp\d+$/, '');
+            newChord = onc;
+        } else {
+            stats = data[p.savedStatsKey] || {};
+            active = data[p.savedActiveKey] || [];
+            newChord = data[p.savedNewChordKey] || null;
+        }
+
+        p.setStats(stats);
+        p.setLevel(data[p.savedLevelKey] || 1);
+        p.setTutorialIndex(data[p.savedTutIdxKey] !== undefined ? data[p.savedTutIdxKey] : 0);
+        p.setTutorialActive(data[p.savedTutActiveKey] !== undefined ? data[p.savedTutActiveKey] : true);
+        p.setDrillCount(data[p.savedDrillCountKey] || 0);
+        p.setNewChord(newChord);
+
+        // Restore chord references in stats
+        const currentStats = p.getStats();
+        for (const key in currentStats) {
+            const c = sorted.find(x => x.key === key);
+            if (c) currentStats[key].chord = c;
+        }
+
+        // Restore active with full chord objects
+        if (!Array.isArray(active[0]?.intervals)) {
+            active = active.map(sc => { const k = sc.key || sc; return sorted.find(x => x.key === k); }).filter(Boolean);
+        }
+        p.setActive(active);
+        p.setDisabled(new Set(data[p.savedDisabledKey] || []));
+        p.setLevel(countBaseChords(active));
+        return true;
+    } catch (e) {
+        console.error('Failed to load chord progress:', e);
+        return false;
+    }
+}
+
+// Generic: resume from specific chord level
+// p: { expandFlag, inversionsFlag, setAllSorted, allSorted (getter), setStats, setActive,
+//      setDrillCount, setNewChord, setTutorialIndex, setTutorialActive, setLevel,
+//      saveFunc, updateStatsFunc, updateLevelFunc }
+function resumeFromChordLevelGeneric(targetLevel, p) {
+    if (targetLevel < 1) { alert('Level must be 1 or higher'); return; }
+    const sorted = initializeChordsSorted(p.expandFlag, p.inversionsFlag);
+    p.setAllSorted(sorted);
+
+    let numBaseChords = targetLevel;
+    if (numBaseChords > TOTAL_BASE_CHORDS) {
+        alert(`Maximum is ${TOTAL_BASE_CHORDS} base chords. Setting to maximum.`);
+        numBaseChords = TOTAL_BASE_CHORDS;
+    }
+
+    const stats = {};
+    for (const chord of sorted) {
+        stats[chord.key] = { attempts: 0, totalTime: 0, recentTimes: [], mastered: false, lastSeenQuestion: -1, chord };
+    }
+
+    const variantsToUnlock = getAllVariantsForFirstNBaseChords(numBaseChords, sorted);
+    const active = [];
+    for (let i = 0; i < variantsToUnlock.length; i++) {
+        const chord = variantsToUnlock[i];
+        active.push(chord);
+        if (stats[chord.key]) {
+            if (i < variantsToUnlock.length - 2) {
+                stats[chord.key].mastered = true;
+                stats[chord.key].attempts = 10;
+                stats[chord.key].totalTime = 10;
+                stats[chord.key].recentTimes = [1, 1, 1, 1, 1];
+            } else {
+                stats[chord.key].attempts = 3;
+                stats[chord.key].totalTime = 12;
+                stats[chord.key].recentTimes = [4, 4, 4];
             }
-
-            // Restore disabled chords
-            disabledChords = new Set(data.disabledChords || []);
-
-            // Sync level with number of base chords
-            adaptiveChordLevel = countBaseChords(activeChords);
-
-            return true;
-        } catch (e) {
-            console.error('Failed to load adaptive chord progress:', e);
-            return false;
         }
     }
-    return false;
+
+    p.setStats(stats);
+    p.setActive(active);
+    p.setDrillCount(0);
+    p.setNewChord(null);
+    p.setTutorialIndex(9999);
+    p.setTutorialActive(false);
+    const level = countBaseChords(active);
+    p.setLevel(level);
+    p.saveFunc();
+    p.updateStatsFunc();
+    p.updateLevelFunc();
+    alert(`Level ${level} — ${active.length} chord variant${active.length !== 1 ? 's' : ''} unlocked.`);
 }
 
-// Save adaptive chord progress to localStorage
-function saveAdaptiveChordProgress() {
-    const data = {
-        chordStats: chordStats,
-        activeChords: activeChords.map(c => ({ key: c.key })),
-        adaptiveChordLevel: adaptiveChordLevel,
-        chordTutorialIndex: chordTutorialIndex,
-        chordTutorialActive: chordTutorialActive,
-        newChordDrillCount: newChordDrillCount,
-        currentNewChord: currentNewChord,
-        randomStartingNote: randomStartingNote,
-        includeInversions: includeInversions,
-        disabledChords: [...disabledChords]
+// ===== CHORD MODE PERSISTENCE (delegates to generic) =====
+
+function _chordModeParams() {
+    return {
+        expandFlag: randomStartingNote, inversionsFlag: includeInversions,
+        setAllSorted: v => { allChordsSorted = v; },
+        setStats: v => { chordStats = v; }, getStats: () => chordStats,
+        setActive: v => { activeChords = v; },
+        setDrillCount: v => { newChordDrillCount = v; },
+        setNewChord: v => { currentNewChord = v; },
+        setTutorialActive: v => { chordTutorialActive = v; },
+        setTutorialIndex: v => { chordTutorialIndex = v; },
+        setTutorialSeq: v => { chordTutorialSequence = v; },
+        setLevel: v => { adaptiveChordLevel = v; },
+        setDisabled: v => { disabledChords = v; },
+        saveFunc: () => saveAdaptiveChordProgress(),
+        updateStatsFunc: updateAdaptiveChordStats,
+        updateLevelFunc: updateAdaptiveChordLevelDisplay
     };
-    localStorage.setItem('ji_adaptive_chord_progress', JSON.stringify(data));
 }
 
-// Reset adaptive chord progress
+function initializeAdaptiveChordMode() {
+    initializeChordAdaptive(_chordModeParams());
+}
+
+function loadAdaptiveChordProgress() {
+    return loadChordAdaptive({
+        ..._chordModeParams(),
+        storageKey: 'ji_adaptive_chord_progress',
+        savedExpandFlagKey: 'randomStartingNote',
+        savedStatsKey: 'chordStats', savedActiveKey: 'activeChords',
+        savedLevelKey: 'adaptiveChordLevel', savedTutIdxKey: 'chordTutorialIndex',
+        savedTutActiveKey: 'chordTutorialActive', savedDrillCountKey: 'newChordDrillCount',
+        savedNewChordKey: 'currentNewChord', savedDisabledKey: 'disabledChords'
+    });
+}
+
+function saveAdaptiveChordProgress() {
+    localStorage.setItem('ji_adaptive_chord_progress', JSON.stringify({
+        chordStats, activeChords: activeChords.map(c => ({ key: c.key })),
+        adaptiveChordLevel, chordTutorialIndex, chordTutorialActive,
+        newChordDrillCount, currentNewChord, randomStartingNote, includeInversions,
+        disabledChords: [...disabledChords]
+    }));
+}
+
 function resetAdaptiveChordProgress() {
     if (confirm('Are you sure you want to reset all adaptive chord mode progress?')) {
         localStorage.removeItem('ji_adaptive_chord_progress');
@@ -2411,78 +2446,8 @@ function resetAdaptiveChordProgress() {
     }
 }
 
-// Resume from specific chord level (input = number of base chords)
 function resumeFromChordLevel(targetLevel) {
-    if (targetLevel < 1) {
-        alert('Level must be 1 or higher');
-        return;
-    }
-
-    // Initialize sorted chords with current flags
-    initializeChordsSorted(randomStartingNote, includeInversions);
-
-    let numBaseChords = targetLevel;
-
-    if (numBaseChords > TOTAL_BASE_CHORDS) {
-        alert(`Maximum is ${TOTAL_BASE_CHORDS} base chords. Setting to maximum.`);
-        numBaseChords = TOTAL_BASE_CHORDS;
-    }
-
-    // Initialize stats for all chords
-    chordStats = {};
-    for (const chord of allChordsSorted) {
-        chordStats[chord.key] = {
-            attempts: 0,
-            totalTime: 0,
-            recentTimes: [],
-            mastered: false,
-            lastSeenQuestion: -1,
-            chord: chord
-        };
-    }
-
-    // Get all variants for the first N base chords
-    const variantsToUnlock = getAllVariantsForFirstNBaseChords(numBaseChords, allChordsSorted);
-
-    activeChords = [];
-    for (let i = 0; i < variantsToUnlock.length; i++) {
-        const chord = variantsToUnlock[i];
-        activeChords.push(chord);
-
-        const chordKey = chord.key;
-        if (chordStats[chordKey]) {
-            // Mark earlier ones as mastered, leave the last few unmastered
-            if (i < variantsToUnlock.length - 2) {
-                chordStats[chordKey].mastered = true;
-                chordStats[chordKey].attempts = 10;
-                chordStats[chordKey].totalTime = 10;
-                chordStats[chordKey].recentTimes = [1, 1, 1, 1, 1];
-            } else {
-                // Leave as unmastered for recent chords
-                chordStats[chordKey].attempts = 3;
-                chordStats[chordKey].totalTime = 12;
-                chordStats[chordKey].recentTimes = [4, 4, 4];
-            }
-        }
-    }
-
-    // Reset drill tracking
-    newChordDrillCount = 0;
-    currentNewChord = null;
-    chordTutorialIndex = 9999; // Skip tutorial
-    chordTutorialActive = false;
-
-    // Set level to match number of base chords
-    adaptiveChordLevel = countBaseChords(activeChords);
-
-    // Save to localStorage
-    saveAdaptiveChordProgress();
-
-    // Update UI
-    updateAdaptiveChordStats();
-    updateAdaptiveChordLevelDisplay();
-
-    alert(`Level ${adaptiveChordLevel} — ${activeChords.length} chord variant${activeChords.length !== 1 ? 's' : ''} unlocked.`);
+    resumeFromChordLevelGeneric(targetLevel, _chordModeParams());
 }
 
 // Start adaptive chord game
@@ -3784,159 +3749,52 @@ function startChordGridGame() {
     if (container) container.focus();
 }
 
-// Initialize chord-grid adaptive mode
-function initializeCGAdaptiveMode() {
-    // Initialize sorted chords (expand starting positions if enabled, include inversions if enabled)
-    cgAllChordsSorted = initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
+// ===== CHORD+GRID MODE PERSISTENCE (delegates to generic) =====
 
-    cgChordStats = {};
-    for (const chord of cgAllChordsSorted) {
-        cgChordStats[chord.key] = {
-            attempts: 0,
-            totalTime: 0,
-            recentTimes: [],
-            mastered: false,
-            lastSeenQuestion: -1,
-            chord: chord
-        };
-    }
-
-    // Start with the first chord entry
-    cgActiveChords = [];
-    if (cgAllChordsSorted.length > 0) {
-        cgActiveChords.push(cgAllChordsSorted[0]);
-    }
-
-    cgNewChordDrillCount = 0;
-    cgCurrentNewChord = null;
-    cgTutorialActive = true;
-    cgTutorialIndex = 0;
-
-    // Set tutorial sequence dynamically
-    cgTutorialSequence = cgAllChordsSorted.length > 0 ? [cgAllChordsSorted[0].key] : ['4:5:6'];
-
-    cgAdaptiveLevel = countBaseChords(cgActiveChords);
-
-    saveCGAdaptiveProgress();
-}
-
-// Load chord-grid adaptive progress
-function loadCGAdaptiveProgress() {
-    const saved = localStorage.getItem('ji_cg_adaptive_progress');
-    if (saved) {
-        try {
-            const data = JSON.parse(saved);
-            const savedExpandFlag = data.chordGridRandomStart || false;
-
-            // Initialize sorted chords with current flags
-            cgAllChordsSorted = initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
-
-            // Set tutorial sequence dynamically
-            cgTutorialSequence = cgAllChordsSorted.length > 0 ? [cgAllChordsSorted[0].key] : ['4:5:6'];
-
-            // Check if expand flag changed - need migration
-            if (savedExpandFlag !== chordGridRandomStart) {
-                const migratedStats = {};
-                const oldStats = data.cgChordStats || {};
-
-                if (chordGridRandomStart && !savedExpandFlag) {
-                    for (const oldKey in oldStats) {
-                        const newKey = oldKey + '_sp0';
-                        migratedStats[newKey] = oldStats[oldKey];
-                    }
-                } else if (!chordGridRandomStart && savedExpandFlag) {
-                    for (const oldKey in oldStats) {
-                        const newKey = oldKey.replace(/_sp\d+$/, '');
-                        if (!migratedStats[newKey]) {
-                            migratedStats[newKey] = oldStats[oldKey];
-                        }
-                    }
-                }
-
-                cgChordStats = migratedStats;
-
-                const migratedActive = [];
-                const oldActive = data.cgActiveChords || [];
-                for (const savedChord of oldActive) {
-                    const oldKey = savedChord.key || savedChord;
-                    let newKey;
-                    if (chordGridRandomStart && !savedExpandFlag) {
-                        newKey = oldKey + '_sp0';
-                    } else {
-                        newKey = oldKey.replace(/_sp\d+$/, '');
-                    }
-                    const chord = cgAllChordsSorted.find(c => c.key === newKey);
-                    if (chord && !migratedActive.find(c => c.key === chord.key)) {
-                        migratedActive.push(chord);
-                    }
-                }
-                cgActiveChords = migratedActive;
-
-                let oldNewChord = data.cgCurrentNewChord || null;
-                if (oldNewChord) {
-                    if (chordGridRandomStart && !savedExpandFlag) {
-                        oldNewChord = oldNewChord + '_sp0';
-                    } else {
-                        oldNewChord = oldNewChord.replace(/_sp\d+$/, '');
-                    }
-                }
-                cgCurrentNewChord = oldNewChord;
-            } else {
-                cgChordStats = data.cgChordStats || {};
-                cgActiveChords = data.cgActiveChords || [];
-                cgCurrentNewChord = data.cgCurrentNewChord || null;
-            }
-
-            cgAdaptiveLevel = data.cgAdaptiveLevel || 1;
-            cgTutorialIndex = data.cgTutorialIndex !== undefined ? data.cgTutorialIndex : 0;
-            cgTutorialActive = data.cgTutorialActive !== undefined ? data.cgTutorialActive : true;
-            cgNewChordDrillCount = data.cgNewChordDrillCount || 0;
-
-            // Restore chord references
-            for (const key in cgChordStats) {
-                const chord = cgAllChordsSorted.find(c => c.key === key);
-                if (chord) cgChordStats[key].chord = chord;
-            }
-
-            // Restore activeChords with full chord objects (if not already migrated)
-            if (!Array.isArray(cgActiveChords[0]?.intervals)) {
-                cgActiveChords = cgActiveChords.map(savedChord => {
-                    const key = savedChord.key || savedChord;
-                    return cgAllChordsSorted.find(c => c.key === key);
-                }).filter(c => c);
-            }
-
-            // Restore disabled chords
-            cgDisabledChords = new Set(data.cgDisabledChords || []);
-
-            cgAdaptiveLevel = countBaseChords(cgActiveChords);
-            return true;
-        } catch (e) {
-            console.error('Failed to load CG adaptive progress:', e);
-            return false;
-        }
-    }
-    return false;
-}
-
-// Save chord-grid adaptive progress
-function saveCGAdaptiveProgress() {
-    const data = {
-        cgChordStats: cgChordStats,
-        cgActiveChords: cgActiveChords.map(c => ({ key: c.key })),
-        cgAdaptiveLevel: cgAdaptiveLevel,
-        cgTutorialIndex: cgTutorialIndex,
-        cgTutorialActive: cgTutorialActive,
-        cgNewChordDrillCount: cgNewChordDrillCount,
-        cgCurrentNewChord: cgCurrentNewChord,
-        chordGridRandomStart: chordGridRandomStart,
-        chordGridIncludeInversions: chordGridIncludeInversions,
-        cgDisabledChords: [...cgDisabledChords]
+function _cgModeParams() {
+    return {
+        expandFlag: chordGridRandomStart, inversionsFlag: chordGridIncludeInversions,
+        setAllSorted: v => { cgAllChordsSorted = v; },
+        setStats: v => { cgChordStats = v; }, getStats: () => cgChordStats,
+        setActive: v => { cgActiveChords = v; },
+        setDrillCount: v => { cgNewChordDrillCount = v; },
+        setNewChord: v => { cgCurrentNewChord = v; },
+        setTutorialActive: v => { cgTutorialActive = v; },
+        setTutorialIndex: v => { cgTutorialIndex = v; },
+        setTutorialSeq: v => { cgTutorialSequence = v; },
+        setLevel: v => { cgAdaptiveLevel = v; },
+        setDisabled: v => { cgDisabledChords = v; },
+        saveFunc: () => saveCGAdaptiveProgress(),
+        updateStatsFunc: updateCGStats,
+        updateLevelFunc: updateCGLevelDisplay
     };
-    localStorage.setItem('ji_cg_adaptive_progress', JSON.stringify(data));
 }
 
-// Reset chord-grid adaptive progress
+function initializeCGAdaptiveMode() {
+    initializeChordAdaptive(_cgModeParams());
+}
+
+function loadCGAdaptiveProgress() {
+    return loadChordAdaptive({
+        ..._cgModeParams(),
+        storageKey: 'ji_cg_adaptive_progress',
+        savedExpandFlagKey: 'chordGridRandomStart',
+        savedStatsKey: 'cgChordStats', savedActiveKey: 'cgActiveChords',
+        savedLevelKey: 'cgAdaptiveLevel', savedTutIdxKey: 'cgTutorialIndex',
+        savedTutActiveKey: 'cgTutorialActive', savedDrillCountKey: 'cgNewChordDrillCount',
+        savedNewChordKey: 'cgCurrentNewChord', savedDisabledKey: 'cgDisabledChords'
+    });
+}
+
+function saveCGAdaptiveProgress() {
+    localStorage.setItem('ji_cg_adaptive_progress', JSON.stringify({
+        cgChordStats, cgActiveChords: cgActiveChords.map(c => ({ key: c.key })),
+        cgAdaptiveLevel, cgTutorialIndex, cgTutorialActive,
+        cgNewChordDrillCount, cgCurrentNewChord, chordGridRandomStart, chordGridIncludeInversions,
+        cgDisabledChords: [...cgDisabledChords]
+    }));
+}
+
 function resetCGAdaptiveProgress() {
     if (confirm('Are you sure you want to reset all Chords + Grid progress?')) {
         localStorage.removeItem('ji_cg_adaptive_progress');
@@ -3949,66 +3807,8 @@ function resetCGAdaptiveProgress() {
     }
 }
 
-// Resume from specific chord-grid level (input = number of base chords)
 function resumeFromCGLevel(targetLevel) {
-    if (targetLevel < 1) {
-        alert('Level must be 1 or higher');
-        return;
-    }
-
-    // Initialize sorted chords with current flags
-    cgAllChordsSorted = initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
-
-    let numBaseChords = targetLevel;
-    if (numBaseChords > TOTAL_BASE_CHORDS) {
-        alert(`Maximum is ${TOTAL_BASE_CHORDS} base chords. Setting to maximum.`);
-        numBaseChords = TOTAL_BASE_CHORDS;
-    }
-
-    cgChordStats = {};
-    for (const chord of cgAllChordsSorted) {
-        cgChordStats[chord.key] = {
-            attempts: 0,
-            totalTime: 0,
-            recentTimes: [],
-            mastered: false,
-            lastSeenQuestion: -1,
-            chord: chord
-        };
-    }
-
-    // Get all variants for the first N base chords
-    const variantsToUnlock = getAllVariantsForFirstNBaseChords(numBaseChords, cgAllChordsSorted);
-
-    cgActiveChords = [];
-    for (let i = 0; i < variantsToUnlock.length; i++) {
-        const chord = variantsToUnlock[i];
-        cgActiveChords.push(chord);
-        if (cgChordStats[chord.key]) {
-            if (i < variantsToUnlock.length - 2) {
-                cgChordStats[chord.key].mastered = true;
-                cgChordStats[chord.key].attempts = 10;
-                cgChordStats[chord.key].totalTime = 10;
-                cgChordStats[chord.key].recentTimes = [1, 1, 1, 1, 1];
-            } else {
-                cgChordStats[chord.key].attempts = 3;
-                cgChordStats[chord.key].totalTime = 12;
-                cgChordStats[chord.key].recentTimes = [4, 4, 4];
-            }
-        }
-    }
-
-    cgNewChordDrillCount = 0;
-    cgCurrentNewChord = null;
-    cgTutorialIndex = 9999;
-    cgTutorialActive = false;
-    cgAdaptiveLevel = countBaseChords(cgActiveChords);
-
-    saveCGAdaptiveProgress();
-    updateCGStats();
-    updateCGLevelDisplay();
-
-    alert(`Level ${cgAdaptiveLevel} — ${cgActiveChords.length} chord variant${cgActiveChords.length !== 1 ? 's' : ''} unlocked.`);
+    resumeFromChordLevelGeneric(targetLevel, _cgModeParams());
 }
 
 // Helper functions to get CG settings
