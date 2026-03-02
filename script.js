@@ -1,11 +1,10 @@
 // Game state
 let gameActive = false;
-let gameMode = 'adaptive'; // 'adaptive' or 'adaptive-chord' (old modes 'interval' and 'chord' removed)
+let gameMode = 'adaptive'; // 'adaptive' or 'adaptive-chord'
 let currentInterval = null;
 let currentChord = null;
 let questionCount = 0;
 let totalTime = 0;
-let remainingIntervals = []; // Kept for compatibility (not actively used in adaptive modes)
 let startTime = null;
 let timerInterval = null;
 let questionStartTime = null;
@@ -1031,8 +1030,6 @@ function shuffleArray(array) {
     }
 }
 
-// Note: Removed dead code - getChordLevelConfig() and startChordGame() (old non-adaptive chord mode)
-
 // Render keyboard legend
 function renderKeyboardLegend() {
     keyboardLegendGrid.innerHTML = '';
@@ -1075,12 +1072,10 @@ function updateTimer() {
     timerEl.textContent = `${minutes}:${String(remainingSeconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
 }
 
-// Note: Removed dead code - nextQuestion() (old interval mode)
-
 // Update composition display
 function updateCompositionDisplay() {
-    // In chord mode (both regular and adaptive), ONLY show current interval being built
-    if (gameMode === 'chord' || gameMode === 'adaptive-chord') {
+    // In chord mode, ONLY show current interval being built
+    if (gameMode === 'adaptive-chord') {
         if (currentComposition.length === 0) {
             currentCompositionEl.textContent = 'Press keys to build interval...';
             currentCompositionEl.style.color = '#999';
@@ -1155,8 +1150,8 @@ document.addEventListener('keydown', (e) => {
 
     const key = e.key.toLowerCase();
 
-    // Handle chord mode separately (both regular and adaptive)
-    if (gameMode === 'chord' || gameMode === 'adaptive-chord') {
+    // Handle chord mode separately
+    if (gameMode === 'adaptive-chord') {
         handleChordKeypress(e, key);
         return;
     }
@@ -1364,11 +1359,7 @@ function handleChordKeypress(e, key) {
 
                 // Wait for last note (300ms) + chord sound + wiggle, then move to next question
                 setTimeout(() => {
-                    if (gameMode === 'adaptive-chord') {
-                        nextAdaptiveChordQuestion();
-                    } else {
-                        nextChordQuestion();
-                    }
+                    nextAdaptiveChordQuestion();
                 }, 1300); // 300ms (last note) + 600ms (wiggle) + 400ms (chord sound)
             }
         } else {
@@ -1523,12 +1514,10 @@ function renderChordPianoRoll(chordKey, enteredIntervals = [], currentCompositio
 
 // Update piano roll as intervals are entered
 function updateChordPianoRoll() {
-    if (gameMode !== 'chord' && gameMode !== 'adaptive-chord') return;
+    if (gameMode !== 'adaptive-chord') return;
     const currentValue = multiplyFractions(currentComposition);
     renderChordPianoRoll(currentChord, chordProgress, currentValue);
 }
-
-// Note: Removed dead code - nextChordQuestion() (old non-adaptive chord mode)
 
 // Handle correct answer
 function handleCorrectAnswer() {
@@ -1561,15 +1550,6 @@ function handleCorrectAnswer() {
             if (chordStats[currentChord].recentTimes.length > rollingAverageWindow) {
                 chordStats[currentChord].recentTimes.shift();
             }
-        }
-    }
-
-    // Check if should repeat due to slow time
-    const repeatSlowCheckbox = document.getElementById('repeat-slow-checkbox');
-    if (repeatSlowCheckbox && repeatSlowCheckbox.checked && timeTaken > repeatSlowThreshold) {
-        if (gameMode === 'adaptive') {
-            remainingIntervals.push(currentInterval);
-            shuffleArray(remainingIntervals);
         }
     }
 
@@ -1964,7 +1944,6 @@ function startAdaptiveGame() {
     totalTime = 0;
     currentComposition = [];
     lastInterval = null; // Reset to allow any first interval
-    remainingIntervals = []; // Not used in weighted random selection, but keep for compatibility
     globalQuestionCounter = 0; // Reset question counter for guaranteed appearance
 
     // Start timer
@@ -3679,7 +3658,7 @@ function captureTarget() {
         targetCol = newCol;
         gridTargetStartTime = Date.now();
 
-        playFeedbackSound('correct');
+        playSound('correct');
 
         // Force re-render
         renderGrid();

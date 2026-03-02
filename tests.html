@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JI Composition Trainer - Tests</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #e0e0e0; }
+        .pass { color: #4caf50; }
+        .fail { color: #f44336; font-weight: bold; }
+        .group { margin: 15px 0 5px; font-size: 1.2em; color: #90caf9; }
+        #summary { margin-top: 20px; padding: 10px; font-size: 1.3em; }
+        #summary.all-pass { background: #1b5e20; }
+        #summary.has-fail { background: #b71c1c; }
+    </style>
+</head>
+<body>
+    <h1>JI Composition Trainer - Automated Tests</h1>
+    <div id="results"></div>
+    <div id="summary"></div>
+
+    <!-- Stub out DOM elements that script.js expects -->
+    <div style="display:none;">
+        <div id="main-menu-panel" class="panel"></div>
+        <div id="adaptive-mode-panel" class="panel"></div>
+        <div id="adaptive-chord-mode-panel" class="panel"></div>
+        <div id="grid-mode-panel" class="panel"></div>
+        <div id="chord-grid-mode-panel" class="panel"></div>
+        <div id="chord-grid-game-panel" class="panel"></div>
+        <div id="mapping-panel" class="panel"></div>
+        <div id="game-panel" class="panel"></div>
+        <div id="target-interval"></div>
+        <div id="current-composition"></div>
+        <div id="feedback" class="feedback"></div>
+        <div id="question-count"></div>
+        <div id="avg-time"></div>
+        <div id="timer"></div>
+        <div id="keyboard-legend-grid"></div>
+        <div id="mapping-config-btn"></div>
+        <div id="back-to-adaptive-btn"></div>
+        <div id="reset-mappings-btn"></div>
+        <div id="save-mappings-btn"></div>
+        <div id="skip-btn"></div>
+        <div id="end-btn"></div>
+        <div id="help-btn"></div>
+        <div id="help-btn-game"></div>
+        <div id="help-modal" class="help-modal"></div>
+        <div id="close-help-btn"></div>
+        <div id="adaptive-stats"></div>
+        <div id="adaptive-level-number"></div>
+        <div id="adaptive-chord-stats"></div>
+        <div id="adaptive-chord-level-number"></div>
+        <div id="adaptive-chord-level-display"></div>
+        <div id="adaptive-chord-level-detail"></div>
+        <div id="adaptive-chord-level-arrow"></div>
+        <div id="adaptive-level-indicator"></div>
+        <div id="game-level-detail"></div>
+        <div id="game-level-arrow"></div>
+        <div id="chord-piano-roll"></div>
+        <div id="game-interval-progress"></div>
+        <div id="game-progress-stats"></div>
+        <div id="game-level-number"></div>
+        <!-- Chord mode settings -->
+        <input type="number" id="chord-mastery-threshold-input" value="5">
+        <input type="number" id="chord-min-attempts-input" value="5">
+        <input type="number" id="chord-rolling-average-window-input" value="3">
+        <input type="number" id="chord-non-mastered-rate-input" value="80">
+        <input type="checkbox" id="include-inversions-checkbox" checked>
+        <input type="checkbox" id="random-starting-note-checkbox">
+        <!-- Interval mode settings -->
+        <input type="number" id="mastery-threshold-input" value="3.5">
+        <input type="number" id="min-attempts-input" value="5">
+        <input type="number" id="new-interval-weight-input" value="3">
+        <input type="number" id="rolling-average-window-input" value="3">
+        <input type="number" id="non-mastered-rate-input" value="60">
+        <select id="display-mode-select-adaptive"><option value="all">All</option></select>
+        <input type="number" id="repeat-slow-input" value="5">
+        <input type="checkbox" id="repeat-slow-checkbox" checked>
+        <select id="synth-type-select"><option value="sawtooth">Sawtooth</option></select>
+        <input type="number" id="release-time-input" value="2">
+        <input type="checkbox" id="vary-pitch-checkbox" checked>
+        <input type="checkbox" id="enable-sound-checkbox" checked>
+        <input type="checkbox" id="ear-training-checkbox">
+        <input type="text" id="submit-key-input" value="`">
+        <!-- Grid settings -->
+        <input type="number" id="grid-size-input" value="10">
+        <span id="grid-size-display">10</span>
+        <div id="grid-container"></div>
+        <!-- Chord-Grid settings -->
+        <input type="number" id="chord-grid-size-input" value="10">
+        <span id="chord-grid-size-display">10</span>
+        <input type="checkbox" id="chord-grid-random-start-checkbox">
+        <input type="checkbox" id="chord-grid-include-inversions-checkbox" checked>
+        <input type="number" id="cg-mastery-threshold-input" value="10">
+        <input type="number" id="cg-min-attempts-input" value="5">
+        <input type="number" id="cg-rolling-average-window-input" value="3">
+        <input type="number" id="cg-non-mastered-rate-input" value="80">
+        <div id="cg-level-display"></div>
+        <div id="cg-level-detail"></div>
+        <div id="cg-level-arrow"></div>
+        <div id="cg-level-number"></div>
+        <div id="cg-level-indicator"></div>
+        <div id="cg-game-level-detail"></div>
+        <div id="cg-game-level-arrow"></div>
+        <div id="cg-game-level-number"></div>
+        <div id="cg-stats"></div>
+        <div id="cg-game-interval-progress"></div>
+        <div id="cg-game-progress-stats"></div>
+        <div id="chord-grid-container"></div>
+        <div id="chord-grid-timer"></div>
+        <div id="chord-grid-score"></div>
+        <div id="chord-grid-avg-time"></div>
+        <div id="chord-grid-phase-indicator"></div>
+        <div id="chord-grid-piano-roll"></div>
+        <div id="chord-grid-keyboard-legend"></div>
+        <div id="chord-grid-legend-grid"></div>
+        <div id="chord-grid-composition-display"></div>
+        <div id="chord-grid-composition"></div>
+        <div id="chord-grid-controls-info"></div>
+        <div id="chord-grid-chord-display"></div>
+        <div id="chord-grid-chord-name"></div>
+        <div id="chord-grid-starting-position"></div>
+        <div id="chord-grid-chord-notation"></div>
+        <div id="chord-grid-chord-intervals"></div>
+        <div id="chord-grid-feedback" class="feedback"></div>
+        <div id="grid-timer"></div>
+        <div id="grid-score"></div>
+        <div id="grid-avg-time"></div>
+    </div>
+
+    <!-- Load data files and script in same order as index.html -->
+    <script src="data/intervalNames.js"></script>
+    <script src="data/chordTypes.js"></script>
+    <script src="data/keyMappings.js"></script>
+    <script src="script.js"></script>
+
+    <script>
+    // ==================== TEST FRAMEWORK ====================
+    let testsPassed = 0;
+    let testsFailed = 0;
+    const resultsEl = document.getElementById('results');
+
+    function group(name) {
+        const div = document.createElement('div');
+        div.className = 'group';
+        div.textContent = `--- ${name} ---`;
+        resultsEl.appendChild(div);
+    }
+
+    function assert(description, condition) {
+        const div = document.createElement('div');
+        if (condition) {
+            div.className = 'pass';
+            div.textContent = `  PASS: ${description}`;
+            testsPassed++;
+        } else {
+            div.className = 'fail';
+            div.textContent = `  FAIL: ${description}`;
+            testsFailed++;
+        }
+        resultsEl.appendChild(div);
+    }
+
+    function assertEqual(description, actual, expected) {
+        const pass = JSON.stringify(actual) === JSON.stringify(expected);
+        const div = document.createElement('div');
+        if (pass) {
+            div.className = 'pass';
+            div.textContent = `  PASS: ${description}`;
+            testsPassed++;
+        } else {
+            div.className = 'fail';
+            div.textContent = `  FAIL: ${description} — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
+            testsFailed++;
+        }
+        resultsEl.appendChild(div);
+    }
+
+    // ==================== TESTS ====================
+
+    // --- gcd ---
+    group('gcd()');
+    assertEqual('gcd(12, 8) = 4', gcd(12, 8), 4);
+    assertEqual('gcd(7, 3) = 1', gcd(7, 3), 1);
+    assertEqual('gcd(100, 75) = 25', gcd(100, 75), 25);
+    assertEqual('gcd(1, 1) = 1', gcd(1, 1), 1);
+    assertEqual('gcd(17, 13) = 1', gcd(17, 13), 1);
+    assertEqual('gcd(6, 6) = 6', gcd(6, 6), 6);
+
+    // --- reduceFraction ---
+    group('reduceFraction()');
+    assertEqual('reduceFraction(4, 6)', reduceFraction(4, 6), { num: 2, denom: 3 });
+    assertEqual('reduceFraction(3, 2)', reduceFraction(3, 2), { num: 3, denom: 2 });
+    assertEqual('reduceFraction(10, 5)', reduceFraction(10, 5), { num: 2, denom: 1 });
+    assertEqual('reduceFraction(1, 1)', reduceFraction(1, 1), { num: 1, denom: 1 });
+    assertEqual('reduceFraction(15, 25)', reduceFraction(15, 25), { num: 3, denom: 5 });
+
+    // --- octaveReduce ---
+    group('octaveReduce()');
+    assertEqual('octaveReduce(3, 1) -> 3/2', octaveReduce(3, 1), { num: 3, denom: 2 });
+    assertEqual('octaveReduce(5, 1) -> 5/4', octaveReduce(5, 1), { num: 5, denom: 4 });
+    assertEqual('octaveReduce(1, 3) -> 2/3', octaveReduce(1, 3), { num: 2, denom: 3 });
+    assertEqual('octaveReduce(3, 2) stays 3/2', octaveReduce(3, 2), { num: 3, denom: 2 });
+    assertEqual('octaveReduce(4, 3) stays 4/3', octaveReduce(4, 3), { num: 4, denom: 3 });
+
+    // --- multiplyFractions ---
+    group('multiplyFractions()');
+    assertEqual('multiply [] = 1/1', multiplyFractions([]), { num: 1, denom: 1 });
+    assertEqual('multiply [3/2]', multiplyFractions([{ num: 3, denom: 2 }]), { num: 3, denom: 2 });
+    assertEqual('3/2 × 4/5 = 6/5', multiplyFractions([{ num: 3, denom: 2 }, { num: 4, denom: 5 }]), { num: 6, denom: 5 });
+    assertEqual('2/1 × 3/2 = 3/1', multiplyFractions([{ num: 2, denom: 1 }, { num: 3, denom: 2 }]), { num: 3, denom: 1 });
+    assertEqual('5/4 × 4/5 = 1/1', multiplyFractions([{ num: 5, denom: 4 }, { num: 4, denom: 5 }]), { num: 1, denom: 1 });
+
+    // --- primeFactorization ---
+    group('primeFactorization()');
+    assertEqual('primeFactorization(1) = {}', primeFactorization(1), {});
+    assertEqual('primeFactorization(2)', primeFactorization(2), { 2: 1 });
+    assertEqual('primeFactorization(12)', primeFactorization(12), { 2: 2, 3: 1 });
+    assertEqual('primeFactorization(30)', primeFactorization(30), { 2: 1, 3: 1, 5: 1 });
+    assertEqual('primeFactorization(7)', primeFactorization(7), { 7: 1 });
+
+    // --- fractionFactorization ---
+    group('fractionFactorization()');
+    assertEqual('fractionFactorization(3, 2)', fractionFactorization(3, 2), { 3: 1, 2: -1 });
+    assertEqual('fractionFactorization(5, 4)', fractionFactorization(5, 4), { 5: 1, 2: -2 });
+    assertEqual('fractionFactorization(6, 5)', fractionFactorization(6, 5), { 2: 1, 3: 1, 5: -1 });
+
+    // --- generateIntervals ---
+    group('generateIntervals()');
+    const intervals_0_10 = generateIntervals(0, 10);
+    assert('generateIntervals(0, 10) returns intervals', intervals_0_10.length > 0);
+    assert('All intervals have num, denom, complexity', intervals_0_10.every(i => i.num && i.denom && i.complexity));
+    assert('No unisons in generateIntervals', intervals_0_10.every(i => !(i.num === 1 && i.denom === 1)));
+    assert('Complexity <= 10 for all', intervals_0_10.every(i => i.complexity <= 10));
+
+    const allIntervals = generateIntervals(0, 900);
+    assert('generateIntervals(0, 900) returns many intervals', allIntervals.length > 50);
+    // Check no duplicates
+    const keys = allIntervals.map(i => `${i.num}/${i.denom}`);
+    assert('No duplicates in generateIntervals', keys.length === new Set(keys).size);
+
+    // --- CHORD_TYPES / BASE_CHORD_TYPES ---
+    group('Chord Type Definitions');
+    assert('BASE_CHORD_TYPES has at least 8 entries', Object.keys(BASE_CHORD_TYPES).length >= 8);
+    assert('CHORD_TYPES has inversions', Object.keys(CHORD_TYPES).length > Object.keys(BASE_CHORD_TYPES).length);
+    assert('Major chord 4:5:6 exists', !!CHORD_TYPES['4:5:6']);
+    assert('Major chord has 3 intervals', CHORD_TYPES['4:5:6'].length === 3);
+    assertEqual('Major chord root is 1/1', CHORD_TYPES['4:5:6'][0], { num: 1, denom: 1 });
+    assertEqual('Major chord 3rd is 5/4', CHORD_TYPES['4:5:6'][1], { num: 5, denom: 4 });
+    assertEqual('Major chord 5th is 3/2', CHORD_TYPES['4:5:6'][2], { num: 3, denom: 2 });
+
+    // --- generateInversion ---
+    group('generateInversion()');
+    const majorFirstInv = generateInversion('4:5:6', 1);
+    assert('Major 1st inversion exists', majorFirstInv !== null);
+    assertEqual('Major 1st inv root = 1/1', majorFirstInv[0], { num: 1, denom: 1 });
+    // 1st inversion of 4:5:6: notes become [5/4, 3/2, 2/1], rebased from 5/4
+    // = [1/1, 6/5, 8/5]
+    assertEqual('Major 1st inv has 3 notes', majorFirstInv.length, 3);
+
+    const majorSecondInv = generateInversion('4:5:6', 2);
+    assert('Major 2nd inversion exists', majorSecondInv !== null);
+    assertEqual('Major 2nd inv root = 1/1', majorSecondInv[0], { num: 1, denom: 1 });
+
+    assert('generateInversion returns null for inv 0', generateInversion('4:5:6', 0) === null);
+    assert('generateInversion returns null for inv >= length', generateInversion('4:5:6', 3) === null);
+
+    // --- getInversionName ---
+    group('getInversionName()');
+    assertEqual('Root position name', getInversionName('4:5:6', 0), '4:5:6');
+    const firstInvName = getInversionName('4:5:6', 1);
+    assert('1st inversion name is not base name', firstInvName !== '4:5:6');
+    assert('1st inversion name contains colon', firstInvName.includes(':'));
+
+    // --- getChordComplexity ---
+    group('getChordComplexity()');
+    const majorComplexity = getChordComplexity('4:5:6');
+    assert('Major chord has positive complexity', majorComplexity > 0);
+    // Complexity = sum(num*denom for each interval) + length*10
+    // = (1*1) + (5*4) + (3*2) + 3*10 = 1 + 20 + 6 + 30 = 57
+    assertEqual('Major chord complexity = 57', majorComplexity, 57);
+
+    // --- computeTransformedIntervals ---
+    group('computeTransformedIntervals()');
+    const majorTransformed0 = computeTransformedIntervals('4:5:6', 0);
+    assertEqual('Transform position 0 = original', majorTransformed0, CHORD_TYPES['4:5:6']);
+
+    const majorTransformed1 = computeTransformedIntervals('4:5:6', 1);
+    assert('Transform position 1 has 3 intervals', majorTransformed1.length === 3);
+    // Position 1 = build from 5/4
+    // Original: 1/1, 5/4, 3/2. Reference = 5/4.
+    // 1/1 / (5/4) = 4/5, 5/4 / (5/4) = 1/1, 3/2 / (5/4) = 6/5
+    // Sorted ascending: 4/5, 1/1, 6/5
+    assert('Transform position 1 first interval < 1', majorTransformed1[0].num / majorTransformed1[0].denom < 1);
+
+    // --- intervalsMatch ---
+    group('intervalsMatch()');
+    assert('Same intervals match', intervalsMatch(
+        [{ num: 1, denom: 1 }, { num: 5, denom: 4 }],
+        [{ num: 1, denom: 1 }, { num: 5, denom: 4 }]
+    ));
+    assert('Same intervals match (different order)', intervalsMatch(
+        [{ num: 5, denom: 4 }, { num: 1, denom: 1 }],
+        [{ num: 1, denom: 1 }, { num: 5, denom: 4 }]
+    ));
+    assert('Different intervals do not match', !intervalsMatch(
+        [{ num: 1, denom: 1 }, { num: 5, denom: 4 }],
+        [{ num: 1, denom: 1 }, { num: 3, denom: 2 }]
+    ));
+    assert('Different lengths do not match', !intervalsMatch(
+        [{ num: 1, denom: 1 }],
+        [{ num: 1, denom: 1 }, { num: 5, denom: 4 }]
+    ));
+
+    // --- initializeChordsSorted ---
+    group('initializeChordsSorted()');
+    const sortedNoExpand = initializeChordsSorted(false, true);
+    assert('initializeChordsSorted(false, true) returns chords', sortedNoExpand.length > 0);
+    assert('First chord is 4:5:6 (Major)', sortedNoExpand[0].chordKey === '4:5:6');
+    assert('All entries have .key, .chordKey, .name', sortedNoExpand.every(c => c.key && c.chordKey && c.name));
+    assert('No expand: startingPosition is always 0', sortedNoExpand.every(c => c.startingPosition === 0));
+
+    const sortedExpand = initializeChordsSorted(true, true);
+    assert('Expanded has more entries than non-expanded', sortedExpand.length > sortedNoExpand.length);
+    assert('Some entries have startingPosition > 0', sortedExpand.some(c => c.startingPosition > 0));
+
+    const sortedNoInv = initializeChordsSorted(false, false);
+    assert('No inversions has fewer entries', sortedNoInv.length < sortedNoExpand.length);
+    assert('No inversions: no entries in INVERSION_INFO',
+        sortedNoInv.every(c => !INVERSION_INFO[c.chordKey]));
+
+    // --- CUSTOM_ORDER ---
+    group('CUSTOM_ORDER');
+    assertEqual('CUSTOM_ORDER has 15 entries', CUSTOM_ORDER.length, 15);
+    assert('All CUSTOM_ORDER entries are in BASE_CHORD_TYPES', CUSTOM_ORDER.every(k => !!BASE_CHORD_TYPES[k]));
+    assert('All BASE_CHORD_TYPES in CUSTOM_ORDER', Object.keys(BASE_CHORD_TYPES).every(k => CUSTOM_ORDER.includes(k)));
+
+    // --- getBaseChordForGrouping ---
+    group('getBaseChordForGrouping()');
+    assertEqual('Base chord for 4:5:6 = 4:5:6', getBaseChordForGrouping('4:5:6'), '4:5:6');
+    assertEqual('Base chord for 4:5:6_sp1 = 4:5:6', getBaseChordForGrouping('4:5:6_sp1'), '4:5:6');
+    // 1st inversion of Major (5:6:8) -> base is 4:5:6
+    const majorFirstInvName = getInversionName('4:5:6', 1);
+    assertEqual('Base for 1st inversion of major', getBaseChordForGrouping(majorFirstInvName), '4:5:6');
+
+    // --- countBaseChords / getUniqueBaseChords ---
+    group('countBaseChords / getUniqueBaseChords');
+    const testChordList = [
+        { key: '4:5:6' },
+        { key: majorFirstInvName },
+        { key: '10:12:15' }
+    ];
+    assertEqual('countBaseChords with 2 base chords', countBaseChords(testChordList), 2);
+    const uniqueBases = getUniqueBaseChords(testChordList);
+    assert('getUniqueBaseChords has 4:5:6', uniqueBases.has('4:5:6'));
+    assert('getUniqueBaseChords has 10:12:15', uniqueBases.has('10:12:15'));
+
+    // --- getAllVariantsForFirstNBaseChords ---
+    group('getAllVariantsForFirstNBaseChords');
+    initializeChordsSorted(false, true); // Reset
+    const firstBaseVariants = getAllVariantsForFirstNBaseChords(1, allChordsSorted);
+    assert('1 base chord returns some variants', firstBaseVariants.length > 0);
+    assert('All variants belong to first base chord',
+        firstBaseVariants.every(c => getBaseChordForGrouping(c.key) === CUSTOM_ORDER[0]));
+
+    const twoBaseVariants = getAllVariantsForFirstNBaseChords(2, allChordsSorted);
+    assert('2 base chords returns more variants', twoBaseVariants.length > firstBaseVariants.length);
+
+    // --- groupChordsHierarchically ---
+    group('groupChordsHierarchically()');
+    initializeChordsSorted(false, true);
+    const hierResult = groupChordsHierarchically(allChordsSorted.slice(0, 10));
+    assert('Returns groups Map', hierResult.groups instanceof Map);
+    assert('Returns groupOrder array', Array.isArray(hierResult.groupOrder));
+    assert('groupOrder has entries', hierResult.groupOrder.length > 0);
+
+    // --- computeChordMastery ---
+    group('computeChordMastery()');
+    const testChordObj = { key: 'test_chord' };
+    const testStatsObj = {
+        'test_chord': { attempts: 10, recentTimes: [1, 2, 1.5], mastered: false }
+    };
+    const mastery = computeChordMastery(testChordObj, testStatsObj, 5, 5, 3);
+    assert('computeChordMastery returns stats', mastery.stats !== null);
+    assert('computeChordMastery calculates avg', mastery.avgRecent !== 'N/A');
+    assert('Mastered when avg < threshold and attempts >= min', mastery.isMastered === true);
+
+    const notMastered = computeChordMastery(testChordObj, testStatsObj, 1, 5, 3);
+    assert('Not mastered when avg > threshold', notMastered.isMastered === false);
+
+    const tooFewAttempts = computeChordMastery(
+        { key: 'test_few' },
+        { 'test_few': { attempts: 2, recentTimes: [1, 1], mastered: false } },
+        5, 5, 3
+    );
+    assert('Not mastered with too few attempts', tooFewAttempts.isMastered === false);
+
+    // --- Mapping definitions ---
+    group('Key Mappings');
+    assert('DEFAULT_PRIME_MAPPINGS has 10 entries', Object.keys(DEFAULT_PRIME_MAPPINGS).length === 10);
+    assert('DEFAULT_RECIPROCAL_MAPPINGS has 10 entries', Object.keys(DEFAULT_RECIPROCAL_MAPPINGS).length === 10);
+    assert('Key 1 maps to 2/1', DEFAULT_PRIME_MAPPINGS['1'].num === 2 && DEFAULT_PRIME_MAPPINGS['1'].denom === 1);
+    assert('Key q maps to 1/2', DEFAULT_RECIPROCAL_MAPPINGS['q'].num === 1 && DEFAULT_RECIPROCAL_MAPPINGS['q'].denom === 2);
+
+    // --- INTERVAL_NAMES ---
+    group('Interval Names');
+    assert('INTERVAL_NAMES has entries', Object.keys(INTERVAL_NAMES).length > 20);
+    assertEqual('3/2 name', INTERVAL_NAMES['3/2'], 'perfect fifth');
+    assertEqual('5/4 name', INTERVAL_NAMES['5/4'], 'major third');
+    assertEqual('2/1 name', INTERVAL_NAMES['2/1'], 'octave');
+
+    // --- getIntervalName ---
+    group('getIntervalName()');
+    assertEqual('getIntervalName(3, 2)', getIntervalName(3, 2), 'perfect fifth');
+    assertEqual('getIntervalName(5, 4)', getIntervalName(5, 4), 'major third');
+    // Descending interval
+    const descName = getIntervalName(2, 3);
+    assert('Descending interval starts with DOWN', descName.startsWith('DOWN'));
+
+    // --- playSound function exists ---
+    group('Function Existence');
+    assert('playSound is a function', typeof playSound === 'function');
+    assert('gcd is a function', typeof gcd === 'function');
+    assert('reduceFraction is a function', typeof reduceFraction === 'function');
+    assert('octaveReduce is a function', typeof octaveReduce === 'function');
+    assert('multiplyFractions is a function', typeof multiplyFractions === 'function');
+    assert('generateIntervals is a function', typeof generateIntervals === 'function');
+    assert('primeFactorization is a function', typeof primeFactorization === 'function');
+    assert('fractionFactorization is a function', typeof fractionFactorization === 'function');
+    assert('computeTransformedIntervals is a function', typeof computeTransformedIntervals === 'function');
+    assert('intervalsMatch is a function', typeof intervalsMatch === 'function');
+    assert('initializeChordsSorted is a function', typeof initializeChordsSorted === 'function');
+    assert('selectWeightedRandomChord is a function', typeof selectWeightedRandomChord === 'function');
+    assert('selectWeightedRandomCGChord is a function', typeof selectWeightedRandomCGChord === 'function');
+    assert('checkAndUnlockNextChord is a function', typeof checkAndUnlockNextChord === 'function');
+    assert('checkAndUnlockNextCGChord is a function', typeof checkAndUnlockNextCGChord === 'function');
+
+    // ==================== SUMMARY ====================
+    const summaryEl = document.getElementById('summary');
+    const total = testsPassed + testsFailed;
+    summaryEl.textContent = `Results: ${testsPassed}/${total} passed, ${testsFailed} failed`;
+    summaryEl.className = testsFailed === 0 ? 'all-pass' : 'has-fail';
+    </script>
+</body>
+</html>
