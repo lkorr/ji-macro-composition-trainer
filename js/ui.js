@@ -108,8 +108,8 @@ function renderHotkeysPanel() {
     }
 
     // Special keys
-    const submitKeyInput = document.getElementById('submit-key-input');
-    if (submitKeyInput) submitKeyInput.value = submitKey;
+    const submitKeyBtn = document.getElementById('submit-key-btn');
+    if (submitKeyBtn) submitKeyBtn.textContent = submitKey === ' ' ? 'Space' : submitKey;
 
     // Grid movement keys
     const leftInput = document.getElementById('cg-move-left-input');
@@ -139,9 +139,7 @@ function saveHotkeysPanel() {
     });
     updateAllMappings();
 
-    // Save submit key
-    const submitKeyInput = document.getElementById('submit-key-input');
-    if (submitKeyInput && submitKeyInput.value.length === 1) submitKey = submitKeyInput.value;
+    // submitKey is set live by the key-capture button in init.js
 
     // Save grid movement keys
     const leftInput = document.getElementById('cg-move-left-input');
@@ -165,9 +163,11 @@ function resetHotkeysPanel() {
     cgMoveLeft = 'a'; cgMoveUp = 's'; cgMoveDown = 'd'; cgMoveRight = 'f';
     cgCaptureKey = 'tab';
     renderHotkeysPanel();
-    // Also reset the capture button's listening state
+    // Also reset any listening state on capture buttons
     const captureBtn = document.getElementById('cg-capture-key-btn');
     if (captureBtn) captureBtn.classList.remove('listening');
+    const submitKeyBtn = document.getElementById('submit-key-btn');
+    if (submitKeyBtn) submitKeyBtn.classList.remove('listening');
     saveSettings();
 }
 
@@ -195,9 +195,6 @@ function saveSettings() {
     const enableSoundCheckbox = document.getElementById('enable-sound-checkbox');
     const earTrainingCheckbox = document.getElementById('ear-training-checkbox');
 
-    // Submit key input
-    const submitKeyInput = document.getElementById('submit-key-input');
-
     // Chord mode settings
     const randomStartingNoteCheckbox = document.getElementById('random-starting-note-checkbox');
     const includeInversionsCheckbox = document.getElementById('include-inversions-checkbox');
@@ -221,7 +218,6 @@ function saveSettings() {
     if (varyPitchCheckbox !== null) varyPitch = varyPitchCheckbox.checked;
     if (enableSoundCheckbox !== null) enableSound = enableSoundCheckbox.checked;
     if (earTrainingCheckbox !== null) earTrainingMode = earTrainingCheckbox.checked;
-    if (submitKeyInput) submitKey = submitKeyInput.value || '`';
     if (randomStartingNoteCheckbox !== null) randomStartingNote = randomStartingNoteCheckbox.checked;
     if (includeInversionsCheckbox !== null) includeInversions = includeInversionsCheckbox.checked;
     if (cgRandomStartCheckbox !== null) chordGridRandomStart = cgRandomStartCheckbox.checked;
@@ -313,7 +309,6 @@ function loadSettings() {
             const varyPitchCheckbox = document.getElementById('vary-pitch-checkbox');
             const enableSoundCheckbox = document.getElementById('enable-sound-checkbox');
             const earTrainingCheckbox = document.getElementById('ear-training-checkbox');
-            const submitKeyInput = document.getElementById('submit-key-input');
             const randomStartingNoteCheckbox = document.getElementById('random-starting-note-checkbox');
             const includeInversionsCheckbox = document.getElementById('include-inversions-checkbox');
 
@@ -332,7 +327,6 @@ function loadSettings() {
             if (varyPitchCheckbox) varyPitchCheckbox.checked = settings.varyPitch ?? true;
             if (enableSoundCheckbox) enableSoundCheckbox.checked = settings.enableSound ?? true;
             if (earTrainingCheckbox) earTrainingCheckbox.checked = settings.earTrainingMode ?? false;
-            if (submitKeyInput) submitKeyInput.value = settings.submitKey ?? '`';
             if (randomStartingNoteCheckbox) randomStartingNoteCheckbox.checked = settings.randomStartingNote ?? false;
             if (includeInversionsCheckbox) includeInversionsCheckbox.checked = settings.includeInversions ?? true;
 

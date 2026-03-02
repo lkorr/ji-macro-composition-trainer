@@ -44,6 +44,25 @@ if (cgCaptureKeyBtn) {
     }, true); // useCapture to intercept before game handlers
 }
 
+const submitKeyBtn = document.getElementById('submit-key-btn');
+if (submitKeyBtn) {
+    let submitListening = false;
+    submitKeyBtn.addEventListener('click', () => {
+        submitListening = true;
+        submitKeyBtn.textContent = 'Press a key...';
+        submitKeyBtn.classList.add('listening');
+    });
+    document.addEventListener('keydown', (e) => {
+        if (!submitListening) return;
+        e.preventDefault();
+        submitListening = false;
+        submitKeyBtn.classList.remove('listening');
+        const label = e.key === ' ' ? 'Space' : e.key;
+        submitKey = e.key === ' ' ? ' ' : e.key.toLowerCase();
+        submitKeyBtn.textContent = label;
+    }, true);
+}
+
 const saveHotkeysBtn = document.getElementById('save-hotkeys-btn');
 if (saveHotkeysBtn) {
     saveHotkeysBtn.addEventListener('click', () => {
@@ -386,7 +405,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'vary-pitch-checkbox',
         'enable-sound-checkbox',
         'ear-training-checkbox',
-        'submit-key-input',
         // Chord-specific settings
         'random-starting-note-checkbox',
         'include-inversions-checkbox',
