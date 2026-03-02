@@ -26,6 +26,9 @@ let onslaughtTargets = [];
 // The target currently being entered in chord phase
 let onslaughtActiveTargetId = null;
 
+// Current arpeggio time-slot cursor index (chord phase, arpeggio mode)
+let onslaughtArpSlot = 0;
+
 // Current onslaught level (1-based; 0 = custom)
 let onslaughtLevel = 1;
 
@@ -426,11 +429,18 @@ function renderOnslaughtGrid() {
                 cell.classList.add('target-cell-piano');
 
                 const isActive = onslaughtPhase === 'chord' && onslaughtActiveTargetId === target.id;
+                const direction = target.arpDirection;
                 const pianoRoll = {
                     label: target.name,
                     intervals: target.expectedIntervals,
                     enteredIntervals: isActive ? target.progress : null,
-                    arrowValue: isActive ? multiplyFractions(target.composition) : { num: 1, denom: 1 }
+                    arrowValue: isActive ? multiplyFractions(target.composition) : { num: 1, denom: 1 },
+                    arpeggio: direction ? {
+                        slotCount: target.expectedIntervals.length,
+                        currentSlot: isActive ? onslaughtArpSlot : null,
+                        direction,
+                        orderedIntervals: getArpOrderedIntervals(target.expectedIntervals, direction)
+                    } : null
                 };
                 cell.innerHTML = buildTargetCellSVG(pianoRoll);
             }
@@ -470,6 +480,7 @@ function moveOnslaughtPlayer(dRow, dCol) {
     if (nr >= 0 && nr < onslaughtGridSize && nc >= 0 && nc < onslaughtGridSize) {
         onslaughtPlayerRow = nr;
         onslaughtPlayerCol = nc;
+        playSound('move');
         renderOnslaughtGrid();
     }
 }
@@ -484,6 +495,20 @@ function captureOnslaughtTarget() {
     onslaughtActiveTargetId = target.id;
     target.progress = [];
     target.composition = [];
+    playSound('capture');
+
+    const isArp = document.getElementById('onslaught-arpeggio-checkbox')?.checked;
+    if (isArp) {
+        let direction = document.getElementById('onslaught-arpeggio-direction')?.value || 'ascending';
+        if (direction === 'both') direction = Math.random() < 0.5 ? 'ascending' : 'descending';
+        target.arpDirection = direction; // resolved once; used for this entire chord phase
+        onslaughtArpSlot = 0;
+        playArpeggioAudio(target.expectedIntervals, direction);
+    } else {
+        target.arpDirection = null;
+        onslaughtArpSlot = 0;
+    }
+
     setOnslaughtPhase('chord');
 }
 
@@ -535,6 +560,16 @@ function setOnslaughtPhase(phase) {
             renderOnslaughtPianoRoll(target);
         }
         resetIntervalHighlightsInContainer('#onslaught-chord-intervals .chord-interval');
+
+        // Pre-highlight 1/1 — the starting note is always already "there"
+        const first = target.expectedIntervals[0];
+        if (first && first.num === 1 && first.denom === 1) {
+            if (!target.progress.some(p => p.num === 1 && p.denom === 1)) {
+                target.progress.unshift({ num: 1, denom: 1 });
+            }
+            markIntervalCorrectInContainer('1/1', '#onslaught-chord-intervals .chord-interval');
+        }
+
         renderOnslaughtGrid();
     }
 }
@@ -554,11 +589,18 @@ function updateOnslaughtChordDisplay(target) {
 }
 
 function renderOnslaughtPianoRoll(target) {
+    const direction = target.arpDirection;
     renderPianoRollSVG({
         containerId: 'onslaught-piano-roll',
         intervals: target.expectedIntervals,
         enteredIntervals: target.progress,
-        arrowValue: multiplyFractions(target.composition)
+        arrowValue: multiplyFractions(target.composition),
+        arpeggio: direction ? {
+            slotCount: target.expectedIntervals.length,
+            currentSlot: onslaughtArpSlot,
+            direction,
+            orderedIntervals: getArpOrderedIntervals(target.expectedIntervals, direction)
+        } : null
     });
 }
 
@@ -598,29 +640,67 @@ function handleOnslaughtKeyPress(event) {
         const target = onslaughtTargets.find(t => t.id === onslaughtActiveTargetId);
         if (!target) return;
 
+        const isArp = !!target.arpDirection;
+        const direction = target.arpDirection;
+
+        // Arpeggio slot navigation (a/f)
+        if (isArp && (key === cgMoveLeft || key === cgMoveRight)) {
+            event.preventDefault();
+            const n = target.expectedIntervals.length;
+            if (key === cgMoveLeft) {
+                onslaughtArpSlot = Math.max(0, onslaughtArpSlot - 1);
+            } else {
+                onslaughtArpSlot = Math.min(n - 1, onslaughtArpSlot + 1);
+            }
+            renderOnslaughtPianoRoll(target);
+            renderOnslaughtGrid();
+            return;
+        }
+
         if (key === 'backspace') {
             event.preventDefault();
             target.composition = [];
-            target.progress = [];
+            target.progress = [{ num: 1, denom: 1 }];
+            if (isArp) {
+                const ordered = getArpOrderedIntervals(target.expectedIntervals, direction);
+                const rootIdx = ordered.findIndex(iv => iv.num === 1 && iv.denom === 1);
+                onslaughtArpSlot = rootIdx >= 0 ? (rootIdx + 1) % ordered.length : 0;
+            }
             resetIntervalHighlightsInContainer('#onslaught-chord-intervals .chord-interval');
+            markIntervalCorrectInContainer('1/1', '#onslaught-chord-intervals .chord-interval');
             updateOnslaughtCompositionDisplay(target);
             renderOnslaughtPianoRoll(target);
             renderOnslaughtGrid();
             return;
         }
 
-        if (key === submitKey.toLowerCase()) {
+        const isSubmit = key === submitKey.toLowerCase();
+        const isTabSubmit = event.key === 'Tab';
+
+        if (isSubmit || isTabSubmit) {
             event.preventDefault();
             const product = multiplyFractions(target.composition);
             const intervalKey = `${product.num}/${product.denom}`;
-            const expectedSet = new Set(target.expectedIntervals.map(i => `${i.num}/${i.denom}`));
             const alreadyEntered = new Set(target.progress.map(i => `${i.num}/${i.denom}`));
 
-            if (expectedSet.has(intervalKey) && !alreadyEntered.has(intervalKey)) {
+            // Determine if this submission is correct
+            let isCorrect = false;
+            if (isArp) {
+                const ordered = getArpOrderedIntervals(target.expectedIntervals, direction);
+                const slotInterval = ordered[onslaughtArpSlot];
+                const slotKey = slotInterval ? `${slotInterval.num}/${slotInterval.denom}` : null;
+                isCorrect = slotKey === intervalKey && !alreadyEntered.has(intervalKey);
+            } else {
+                const expectedSet = new Set(target.expectedIntervals.map(i => `${i.num}/${i.denom}`));
+                isCorrect = expectedSet.has(intervalKey) && !alreadyEntered.has(intervalKey);
+            }
+
+            if (isCorrect) {
                 target.progress.push(product);
                 playSingleTone(product.num, product.denom);
                 markIntervalCorrectInContainer(intervalKey, '#onslaught-chord-intervals .chord-interval');
-                target.composition = [];
+                // Tab: stay at current position; submit key: reset to 1/1
+                target.composition = isTabSubmit ? [product] : [];
                 updateOnslaughtCompositionDisplay(target);
                 renderOnslaughtPianoRoll(target);
                 renderOnslaughtGrid();
@@ -632,6 +712,14 @@ function handleOnslaughtKeyPress(event) {
                     updateOnslaughtScoreDisplay();
                     removeOnslaughtTarget(target.id);
                     onslaughtActiveTargetId = null;
+
+                    // Board clear bonus: reduce spawn interval by 10%
+                    if (onslaughtTargets.length === 0) {
+                        onslaughtCurrentSpawnInterval *= 0.9;
+                        updateOnslaughtSpawnDisplay();
+                        playSound('board-clear');
+                    }
+
                     setOnslaughtPhase('grid');
                 }
             } else {
@@ -648,8 +736,10 @@ function handleOnslaughtKeyPress(event) {
                     renderOnslaughtGrid();
                 } else {
                     target.composition = [];
-                    target.progress = [];
+                    target.progress = [{ num: 1, denom: 1 }];
+                    if (isArp) onslaughtArpSlot = 0;
                     resetIntervalHighlightsInContainer('#onslaught-chord-intervals .chord-interval');
+                    markIntervalCorrectInContainer('1/1', '#onslaught-chord-intervals .chord-interval');
                     updateOnslaughtCompositionDisplay(target);
                     renderOnslaughtPianoRoll(target);
                     renderOnslaughtGrid();

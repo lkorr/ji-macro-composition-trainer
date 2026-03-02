@@ -406,6 +406,21 @@
                         Center chord around random interval
                     </label>
                 </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="onslaught-arpeggio-checkbox">
+                        Arpeggio mode
+                    </label>
+                </div>
+                <div class="setting-row" id="onslaught-arpeggio-direction-row" style="display:none;">
+                    <label>Direction:
+                        <select id="onslaught-arpeggio-direction">
+                            <option value="ascending">Ascending (low → high)</option>
+                            <option value="descending">Descending (high → low)</option>
+                            <option value="both">Both (random each capture)</option>
+                        </select>
+                    </label>
+                </div>
             </div>
 
             <div class="adaptive-settings" style="margin-top:20px;">

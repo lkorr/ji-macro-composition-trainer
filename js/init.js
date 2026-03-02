@@ -154,6 +154,14 @@ if (endOnslaughtBtn) {
     endOnslaughtBtn.addEventListener('click', endOnslaughtGame);
 }
 
+const onslaughtArpeggioCheckbox = document.getElementById('onslaught-arpeggio-checkbox');
+const onslaughtArpeggioDirectionRow = document.getElementById('onslaught-arpeggio-direction-row');
+if (onslaughtArpeggioCheckbox && onslaughtArpeggioDirectionRow) {
+    onslaughtArpeggioCheckbox.addEventListener('change', () => {
+        onslaughtArpeggioDirectionRow.style.display = onslaughtArpeggioCheckbox.checked ? 'flex' : 'none';
+    });
+}
+
 const selectChordModeBtn = document.getElementById('select-chord-mode-btn');
 if (selectChordModeBtn) {
     selectChordModeBtn.addEventListener('click', showAdaptiveChordMode);
@@ -484,7 +492,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'onslaught-mistake-expires-checkbox',
         'onslaught-mistake-penalty-input',
         'onslaught-expire-penalty-input',
-        'onslaught-show-chord-info-checkbox'
+        'onslaught-show-chord-info-checkbox',
+        'onslaught-arpeggio-checkbox',
+        'onslaught-arpeggio-direction'
     ];
 
     settingsInputs.forEach(id => {

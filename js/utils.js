@@ -284,3 +284,14 @@ function buildSortedIntervals() {
     }
     return result;
 }
+
+// Order intervals for arpeggio mode: sorted by direction, then rotated so that
+// 1/1 is at slot 0 and the sequence continues (wrapping) from there.
+// e.g. ascending [low, MID(1/1), high] → [1/1, high, low]
+function getArpOrderedIntervals(intervals, direction) {
+    const sorted = intervals.slice().sort((a, b) => (a.num / a.denom) - (b.num / b.denom));
+    if (direction === 'descending') sorted.reverse();
+    const rootIdx = sorted.findIndex(iv => iv.num === 1 && iv.denom === 1);
+    if (rootIdx <= 0) return sorted; // already starts at 1/1 (or not found)
+    return sorted.slice(rootIdx).concat(sorted.slice(0, rootIdx));
+}

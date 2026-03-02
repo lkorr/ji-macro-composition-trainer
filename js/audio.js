@@ -139,6 +139,41 @@ function playChordAudio(intervals) {
     });
 }
 
+// Play arpeggio audio (notes staggered in time)
+function playArpeggioAudio(intervals, direction) {
+    if (!audioContext || !enableSound) return;
+
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+
+    const ordered = getArpOrderedIntervals(intervals, direction);
+    const n = ordered.length;
+    const noteDuration = 1.0 / n;
+    const now = audioContext.currentTime;
+    const baseFreq = 220; // A3
+
+    ordered.forEach((interval, i) => {
+        const cents = 1200 * Math.log2(interval.num / interval.denom);
+        const freq = baseFreq * Math.pow(2, cents / 1200);
+        const startOffset = i * noteDuration;
+
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+
+        gain.gain.setValueAtTime(0.25, now + startOffset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + noteDuration + 0.2);
+
+        osc.start(now + startOffset);
+        osc.stop(now + startOffset + noteDuration + 0.2);
+    });
+}
+
 // Play sound
 function playSound(type) {
     if (!audioContext) return;
@@ -174,6 +209,45 @@ function playSound(type) {
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
         osc.start(now);
         osc.stop(now + 0.3);
+    } else if (type === 'move') {
+        // Soft tick for grid navigation
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 300;
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.start(now);
+        osc.stop(now + 0.05);
+    } else if (type === 'capture') {
+        // Short rising blip when selecting a chord target
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.linearRampToValueAtTime(700, now + 0.1);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+    } else if (type === 'board-clear') {
+        // Triumphant ascending run for clearing the board
+        const freqs = [523.25, 659.25, 783.99, 1046.5];
+        freqs.forEach((freq, i) => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.18, now + i * 0.07);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.18);
+            osc.start(now + i * 0.07);
+            osc.stop(now + i * 0.07 + 0.18);
+        });
     } else if (type === 'excellent') {
         // Major chord arpeggio for completing the chord
         const notes = [

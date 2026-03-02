@@ -261,7 +261,11 @@ function saveSettings() {
         releaseTime: releaseTime,
         varyPitch: varyPitch,
         enableSound: enableSound,
-        earTrainingMode: earTrainingMode
+        earTrainingMode: earTrainingMode,
+
+        // Onslaught arpeggio settings
+        onslaughtArpeggio: document.getElementById('onslaught-arpeggio-checkbox')?.checked ?? false,
+        onslaughtArpeggioDirection: document.getElementById('onslaught-arpeggio-direction')?.value ?? 'ascending'
     };
 
     localStorage.setItem('ji_trainer_settings', JSON.stringify(settings));
@@ -360,6 +364,20 @@ function loadSettings() {
             if (cgMinAttemptsInput) cgMinAttemptsInput.value = settings.cgMinAttempts ?? 5;
             if (cgRollingWindowInput) cgRollingWindowInput.value = settings.cgRollingWindow ?? 3;
             if (cgNonMasteredRateInput) cgNonMasteredRateInput.value = settings.cgNonMasteredRate ?? 80;
+
+            // Restore onslaught arpeggio settings
+            const onslaughtArpeggioCheckbox = document.getElementById('onslaught-arpeggio-checkbox');
+            const onslaughtArpeggioDirectionRow = document.getElementById('onslaught-arpeggio-direction-row');
+            const onslaughtArpeggioDirection = document.getElementById('onslaught-arpeggio-direction');
+            if (onslaughtArpeggioCheckbox && settings.onslaughtArpeggio !== undefined) {
+                onslaughtArpeggioCheckbox.checked = settings.onslaughtArpeggio;
+                if (onslaughtArpeggioDirectionRow) {
+                    onslaughtArpeggioDirectionRow.style.display = settings.onslaughtArpeggio ? 'flex' : 'none';
+                }
+            }
+            if (onslaughtArpeggioDirection && settings.onslaughtArpeggioDirection !== undefined) {
+                onslaughtArpeggioDirection.value = settings.onslaughtArpeggioDirection;
+            }
 
             return true;
         } catch (e) {
@@ -545,7 +563,7 @@ function intervalsToMIDI(intervals, baseNote = 60) {
 }
 
 // Render piano roll SVG into a container
-function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowValue }) {
+function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowValue, arpeggio }) {
     const container = document.getElementById(containerId);
     if (!container || !intervals || intervals.length === 0) return;
 
@@ -568,16 +586,37 @@ function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowVal
 
     const enteredSet = enteredIntervals ? new Set(enteredIntervals.map(i => `${i.num}/${i.denom}`)) : null;
 
-    intervals.forEach((interval, index) => {
-        const pos = positions[index];
-        const normalizedPos = (pos - paddedMin) / totalRange;
-        const y = height - (normalizedPos * height) - barHeight / 2;
-        const isEntered = enteredSet ? enteredSet.has(`${interval.num}/${interval.denom}`) : false;
-        const color = isEntered ? '#4caf50' : '#999';
+    if (arpeggio) {
+        const { slotCount, currentSlot, orderedIntervals } = arpeggio;
+        const barWidth = noteWidth / slotCount;
 
-        svg += `<rect x="${arrowWidth}" y="${y}" width="${noteWidth}" height="${barHeight}"
-                fill="${color}" stroke="#000" stroke-width="1" rx="2"/>`;
-    });
+        // Slot highlight
+        const slotX = arrowWidth + currentSlot * barWidth;
+        svg += `<rect x="${slotX}" y="0" width="${barWidth}" height="${height}" fill="rgba(255,255,255,0.12)"/>`;
+
+        orderedIntervals.forEach((interval, slotIndex) => {
+            const pos = Math.log2(interval.num / interval.denom);
+            const normalizedPos = (pos - paddedMin) / totalRange;
+            const y = height - (normalizedPos * height) - barHeight / 2;
+            const isEntered = enteredSet ? enteredSet.has(`${interval.num}/${interval.denom}`) : false;
+            const color = isEntered ? '#4caf50' : '#999';
+            const x = arrowWidth + slotIndex * barWidth;
+
+            svg += `<rect x="${x}" y="${y}" width="${barWidth - 1}" height="${barHeight}"
+                    fill="${color}" stroke="#000" stroke-width="1" rx="2"/>`;
+        });
+    } else {
+        intervals.forEach((interval, index) => {
+            const pos = positions[index];
+            const normalizedPos = (pos - paddedMin) / totalRange;
+            const y = height - (normalizedPos * height) - barHeight / 2;
+            const isEntered = enteredSet ? enteredSet.has(`${interval.num}/${interval.denom}`) : false;
+            const color = isEntered ? '#4caf50' : '#999';
+
+            svg += `<rect x="${arrowWidth}" y="${y}" width="${noteWidth}" height="${barHeight}"
+                    fill="${color}" stroke="#000" stroke-width="1" rx="2"/>`;
+        });
+    }
 
     if (arrowValue) {
         const currentPos = Math.log2(arrowValue.num / arrowValue.denom);
@@ -636,7 +675,7 @@ function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetPianoRo
 }
 
 // Build an inline SVG for the target cell showing chord name + piano roll
-function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue }) {
+function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue, arpeggio }) {
     if (!intervals || intervals.length === 0) return label || '●';
 
     const positions = intervals.map(i => Math.log2(i.num / i.denom));
@@ -667,14 +706,35 @@ function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue }) 
     }
 
     // Piano roll bars
-    intervals.forEach((interval, idx) => {
-        const pos = positions[idx];
-        const norm = (pos - paddedMin) / totalRange;
-        const y = labelH + rollH - (norm * rollH) - barH / 2;
-        const isEntered = enteredSet.has(`${interval.num}/${interval.denom}`);
-        const fill = isEntered ? '#4caf50' : 'rgba(255,255,255,0.5)';
-        svg += `<rect x="${noteX}" y="${y}" width="${noteW}" height="${barH}" fill="${fill}" rx="1"/>`;
-    });
+    if (arpeggio) {
+        const { slotCount, currentSlot, orderedIntervals } = arpeggio;
+        const barWidth = noteW / slotCount;
+
+        // Slot highlight (only when active)
+        if (currentSlot !== null && currentSlot !== undefined) {
+            const slotX = noteX + currentSlot * barWidth;
+            svg += `<rect x="${slotX}" y="${labelH}" width="${barWidth}" height="${rollH}" fill="rgba(255,255,255,0.15)"/>`;
+        }
+
+        orderedIntervals.forEach((interval, slotIndex) => {
+            const pos = Math.log2(interval.num / interval.denom);
+            const norm = (pos - paddedMin) / totalRange;
+            const y = labelH + rollH - (norm * rollH) - barH / 2;
+            const isEntered = enteredSet.has(`${interval.num}/${interval.denom}`);
+            const fill = isEntered ? '#4caf50' : 'rgba(255,255,255,0.5)';
+            const x = noteX + slotIndex * barWidth;
+            svg += `<rect x="${x}" y="${y}" width="${barWidth - 1}" height="${barH}" fill="${fill}" rx="1"/>`;
+        });
+    } else {
+        intervals.forEach((interval, idx) => {
+            const pos = positions[idx];
+            const norm = (pos - paddedMin) / totalRange;
+            const y = labelH + rollH - (norm * rollH) - barH / 2;
+            const isEntered = enteredSet.has(`${interval.num}/${interval.denom}`);
+            const fill = isEntered ? '#4caf50' : 'rgba(255,255,255,0.5)';
+            svg += `<rect x="${noteX}" y="${y}" width="${noteW}" height="${barH}" fill="${fill}" rx="1"/>`;
+        });
+    }
 
     // Arrow
     if (arrowValue) {
