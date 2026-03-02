@@ -625,7 +625,7 @@ function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue }) 
 
     // Fixed viewBox coords — SVG scales to fill the cell via CSS
     const vbW = 60;
-    const labelH = 18;
+    const labelH = 22;
     const rollH = 80;
     const vbH = labelH + rollH;
     const arrowW = 12;
@@ -639,7 +639,7 @@ function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue }) 
 
     // Chord name
     if (label) {
-        svg += `<text x="${vbW / 2}" y="${labelH - 3}" text-anchor="middle" font-size="11" font-weight="bold" fill="white" font-family="sans-serif">${label}</text>`;
+        svg += `<text x="${vbW / 2}" y="${labelH - 3}" text-anchor="middle" font-size="15" font-weight="bold" fill="white" font-family="sans-serif">${label}</text>`;
     }
 
     // Piano roll bars
