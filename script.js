@@ -1355,74 +1355,64 @@ function intervalsToMIDI(intervals, baseNote = 60) {
     });
 }
 
-// Render piano roll visualization for a chord (vertical MIDI-style)
-function renderChordPianoRoll(chordKey, enteredIntervals = [], currentCompositionValue = null) {
-    const container = document.getElementById('chord-piano-roll');
-    if (!container) return;
+// Render piano roll SVG into a container
+// options: { containerId, intervals, enteredIntervals, arrowValue }
+// enteredIntervals: array of {num,denom} already placed (null = all grey/preview)
+// arrowValue: {num,denom} for arrow position (null = no arrow)
+function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowValue }) {
+    const container = document.getElementById(containerId);
+    if (!container || !intervals || intervals.length === 0) return;
 
-    // Use the globally stored expected intervals (accounts for starting position transformation)
-    const intervals = currentExpectedIntervals.length > 0 ? currentExpectedIntervals : CHORD_TYPES[chordKey];
-    if (!intervals) return;
-
-    // Calculate continuous positions in octaves for each interval
-    const positions = intervals.map(interval => {
-        const ratio = interval.num / interval.denom;
-        return Math.log2(ratio); // Position in octaves from 1/1
-    });
-
-    // Find range for scaling
+    const positions = intervals.map(interval => Math.log2(interval.num / interval.denom));
     const minPos = Math.min(...positions);
     const maxPos = Math.max(...positions);
-
-    // Add padding (in octaves)
-    const padding = 0.25; // Quarter octave padding
+    const padding = 0.25;
     const paddedMin = minPos - padding;
     const paddedMax = maxPos + padding;
     const totalRange = paddedMax - paddedMin;
 
-    // SVG dimensions
-    const pixelsPerOctave = 100; // Pixels per octave
+    const pixelsPerOctave = 100;
     const height = totalRange * pixelsPerOctave;
     const arrowWidth = 25;
     const noteWidth = 80;
-    const barHeight = 10; // Height of each note bar
+    const barHeight = 10;
     const width = arrowWidth + noteWidth + 5;
 
     let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
 
-    // Create a set of entered intervals for lookup
-    const enteredSet = new Set(enteredIntervals.map(i => `${i.num}/${i.denom}`));
+    const enteredSet = enteredIntervals ? new Set(enteredIntervals.map(i => `${i.num}/${i.denom}`)) : null;
 
-    // Draw each interval bar
     intervals.forEach((interval, index) => {
         const pos = positions[index];
-
-        // Y position (inverted - higher pitch at top)
         const normalizedPos = (pos - paddedMin) / totalRange;
         const y = height - (normalizedPos * height) - barHeight / 2;
-
-        const isEntered = enteredSet.has(`${interval.num}/${interval.denom}`);
+        const isEntered = enteredSet ? enteredSet.has(`${interval.num}/${interval.denom}`) : false;
         const color = isEntered ? '#4caf50' : '#999';
 
         svg += `<rect x="${arrowWidth}" y="${y}" width="${noteWidth}" height="${barHeight}"
                 fill="${color}" stroke="#000" stroke-width="1" rx="2"/>`;
     });
 
-    // Draw arrow pointing at the current composition value
-    if (currentCompositionValue) {
-        const currentRatio = currentCompositionValue.num / currentCompositionValue.denom;
-        const currentPos = Math.log2(currentRatio);
+    if (arrowValue) {
+        const currentPos = Math.log2(arrowValue.num / arrowValue.denom);
         const normalizedPos = (currentPos - paddedMin) / totalRange;
         const arrowY = height - (normalizedPos * height);
-
-        // Arrow pointing right
         svg += `<path d="M ${arrowWidth - 5} ${arrowY} L 5 ${arrowY - 6} L 5 ${arrowY + 6} Z"
                 fill="#4caf50" class="root-arrow"/>`;
     }
 
     svg += '</svg>';
-
     container.innerHTML = svg;
+}
+
+function renderChordPianoRoll(chordKey, enteredIntervals = [], currentCompositionValue = null) {
+    const intervals = currentExpectedIntervals.length > 0 ? currentExpectedIntervals : CHORD_TYPES[chordKey];
+    renderPianoRollSVG({
+        containerId: 'chord-piano-roll',
+        intervals,
+        enteredIntervals,
+        arrowValue: currentCompositionValue
+    });
 }
 
 // Update piano roll as intervals are entered
@@ -4806,105 +4796,24 @@ function renderChordGrid() {
     renderGridInto('chord-grid-container', chordGridSize, chordGridPlayerRow, chordGridPlayerCol, chordGridTargetRow, chordGridTargetCol);
 }
 
-// Render piano roll for chord-grid mode
 function renderChordGridPianoRoll() {
-    const container = document.getElementById('chord-grid-piano-roll');
-    if (!container || !cgCurrentChord) return;
-
-    const intervals = cgCurrentExpectedIntervals;
-    if (!intervals || intervals.length === 0) return;
-
-    // Calculate positions
-    const positions = intervals.map(interval => Math.log2(interval.num / interval.denom));
-    const minPos = Math.min(...positions);
-    const maxPos = Math.max(...positions);
-    const padding = 0.25;
-    const paddedMin = minPos - padding;
-    const paddedMax = maxPos + padding;
-    const totalRange = paddedMax - paddedMin;
-
-    const pixelsPerOctave = 100;
-    const height = totalRange * pixelsPerOctave;
-    const arrowWidth = 25;
-    const noteWidth = 80;
-    const barHeight = 10;
-    const width = arrowWidth + noteWidth + 5;
-
-    let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
-
-    const enteredSet = new Set(cgChordProgress.map(i => `${i.num}/${i.denom}`));
-
-    intervals.forEach((interval, index) => {
-        const pos = positions[index];
-        const normalizedPos = (pos - paddedMin) / totalRange;
-        const y = height - (normalizedPos * height) - barHeight / 2;
-        const isEntered = enteredSet.has(`${interval.num}/${interval.denom}`);
-        const color = isEntered ? '#4caf50' : '#999';
-
-        svg += `<rect x="${arrowWidth}" y="${y}" width="${noteWidth}" height="${barHeight}"
-                fill="${color}" stroke="#000" stroke-width="1" rx="2"/>`;
+    if (!cgCurrentChord) return;
+    renderPianoRollSVG({
+        containerId: 'chord-grid-piano-roll',
+        intervals: cgCurrentExpectedIntervals,
+        enteredIntervals: cgChordProgress,
+        arrowValue: multiplyFractions(cgCurrentComposition)
     });
-
-    // Arrow for current composition
-    const currentValue = multiplyFractions(cgCurrentComposition);
-    if (currentValue) {
-        const currentRatio = currentValue.num / currentValue.denom;
-        const currentPos = Math.log2(currentRatio);
-        const normalizedPos = (currentPos - paddedMin) / totalRange;
-        const arrowY = height - (normalizedPos * height);
-
-        svg += `<path d="M ${arrowWidth - 5} ${arrowY} L 5 ${arrowY - 6} L 5 ${arrowY + 6} Z"
-                fill="#4caf50" class="root-arrow"/>`;
-    }
-
-    svg += '</svg>';
-    container.innerHTML = svg;
 }
 
-// Render piano roll as a static preview (grid phase - no arrow, all bars grey)
 function renderChordGridPianoRollPreview() {
-    const container = document.getElementById('chord-grid-piano-roll');
-    if (!container || !cgCurrentChord) return;
-
-    const intervals = cgCurrentExpectedIntervals;
-    if (!intervals || intervals.length === 0) return;
-
-    const positions = intervals.map(interval => Math.log2(interval.num / interval.denom));
-    const minPos = Math.min(...positions);
-    const maxPos = Math.max(...positions);
-    const padding = 0.25;
-    const paddedMin = minPos - padding;
-    const paddedMax = maxPos + padding;
-    const totalRange = paddedMax - paddedMin;
-
-    const pixelsPerOctave = 100;
-    const height = totalRange * pixelsPerOctave;
-    const arrowWidth = 25;
-    const noteWidth = 80;
-    const barHeight = 10;
-    const width = arrowWidth + noteWidth + 5;
-
-    let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
-
-    intervals.forEach((interval, index) => {
-        const pos = positions[index];
-        const normalizedPos = (pos - paddedMin) / totalRange;
-        const y = height - (normalizedPos * height) - barHeight / 2;
-
-        svg += `<rect x="${arrowWidth}" y="${y}" width="${noteWidth}" height="${barHeight}"
-                fill="#999" stroke="#000" stroke-width="1" rx="2"/>`;
+    if (!cgCurrentChord) return;
+    renderPianoRollSVG({
+        containerId: 'chord-grid-piano-roll',
+        intervals: cgCurrentExpectedIntervals,
+        enteredIntervals: null,
+        arrowValue: { num: 1, denom: 1 }
     });
-
-    // Arrow pointing at 1/1 (the starting note)
-    const startPos = Math.log2(1); // 0
-    const normalizedStart = (startPos - paddedMin) / totalRange;
-    const arrowY = height - (normalizedStart * height);
-
-    svg += `<path d="M ${arrowWidth - 5} ${arrowY} L 5 ${arrowY - 6} L 5 ${arrowY + 6} Z"
-            fill="#4caf50" class="root-arrow"/>`;
-
-    svg += '</svg>';
-    container.innerHTML = svg;
 }
 
 // Update composition display for chord-grid mode
