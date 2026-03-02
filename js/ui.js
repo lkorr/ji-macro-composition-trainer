@@ -580,7 +580,7 @@ function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowVal
 }
 
 // Grid rendering
-function renderGridInto(containerId, size, pRow, pCol, tRow, tCol) {
+function renderGridInto(containerId, size, pRow, pCol, tRow, tCol, targetLabel) {
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = '';
@@ -596,7 +596,12 @@ function renderGridInto(containerId, size, pRow, pCol, tRow, tCol) {
                 cell.textContent = '◆';
             } else if (row === tRow && col === tCol) {
                 cell.classList.add('target-cell');
-                cell.textContent = '●';
+                if (targetLabel) {
+                    cell.textContent = targetLabel;
+                    cell.classList.add('target-cell-labeled');
+                } else {
+                    cell.textContent = '●';
+                }
             }
 
             container.appendChild(cell);

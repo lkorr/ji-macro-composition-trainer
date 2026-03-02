@@ -533,7 +533,9 @@ function handleChordGridChordKeypress(event, key) {
 
 // Render functions
 function renderChordGrid() {
-    renderGridInto('chord-grid-container', chordGridSize, chordGridPlayerRow, chordGridPlayerCol, chordGridTargetRow, chordGridTargetCol);
+    const entry = cgAllChordsSorted.find(c => c.key === cgCurrentChord);
+    const label = entry ? entry.name : null;
+    renderGridInto('chord-grid-container', chordGridSize, chordGridPlayerRow, chordGridPlayerCol, chordGridTargetRow, chordGridTargetCol, label);
 }
 
 function renderChordGridPianoRoll() {

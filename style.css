@@ -1171,6 +1171,18 @@ h3 {
     animation: pulse 1.5s ease-in-out infinite;
 }
 
+.target-cell-labeled {
+    font-size: 0.55em;
+    font-weight: 600;
+    line-height: 1.1;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2px;
+}
+
 @keyframes pulse {
     0%, 100% {
         transform: scale(1);
