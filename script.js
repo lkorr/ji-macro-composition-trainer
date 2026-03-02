@@ -937,35 +937,37 @@ function shuffleArray(array) {
     }
 }
 
-// Render keyboard legend
-function renderKeyboardLegend() {
-    keyboardLegendGrid.innerHTML = '';
+// Render keyboard legend into a given container element
+function renderKeyboardLegendInto(container) {
+    if (!container) return;
+    container.innerHTML = '';
 
-    // Define the order of keys for proper layout
     const primeKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
     const reciprocalKeys = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
 
-    // Add primes first row (1-0)
     for (const key of primeKeys) {
         if (primeMappings[key]) {
             const ratio = primeMappings[key];
             const div = document.createElement('div');
             div.className = 'legend-item';
             div.innerHTML = `<span class="legend-key">${key}</span><span class="legend-ratio">${ratio.num}/${ratio.denom}</span>`;
-            keyboardLegendGrid.appendChild(div);
+            container.appendChild(div);
         }
     }
 
-    // Add reciprocals second row (q-p)
     for (const key of reciprocalKeys) {
         if (reciprocalMappings[key]) {
             const ratio = reciprocalMappings[key];
             const div = document.createElement('div');
             div.className = 'legend-item';
             div.innerHTML = `<span class="legend-key">${key.toUpperCase()}</span><span class="legend-ratio">${ratio.num}/${ratio.denom}</span>`;
-            keyboardLegendGrid.appendChild(div);
+            container.appendChild(div);
         }
     }
+}
+
+function renderKeyboardLegend() {
+    renderKeyboardLegendInto(keyboardLegendGrid);
 }
 
 // Update timer
@@ -4980,33 +4982,6 @@ function updateChordGridStats() {
     }
 }
 
-// Render keyboard legend for chord-grid mode
 function renderChordGridKeyboardLegend() {
-    const legendGrid = document.getElementById('chord-grid-legend-grid');
-    if (!legendGrid) return;
-
-    legendGrid.innerHTML = '';
-
-    const primeKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-    const reciprocalKeys = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
-
-    for (const key of primeKeys) {
-        if (primeMappings[key]) {
-            const ratio = primeMappings[key];
-            const div = document.createElement('div');
-            div.className = 'legend-item';
-            div.innerHTML = `<span class="legend-key">${key}</span><span class="legend-ratio">${ratio.num}/${ratio.denom}</span>`;
-            legendGrid.appendChild(div);
-        }
-    }
-
-    for (const key of reciprocalKeys) {
-        if (reciprocalMappings[key]) {
-            const ratio = reciprocalMappings[key];
-            const div = document.createElement('div');
-            div.className = 'legend-item';
-            div.innerHTML = `<span class="legend-key">${key.toUpperCase()}</span><span class="legend-ratio">${ratio.num}/${ratio.denom}</span>`;
-            legendGrid.appendChild(div);
-        }
-    }
+    renderKeyboardLegendInto(document.getElementById('chord-grid-legend-grid'));
 }
