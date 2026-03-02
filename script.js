@@ -970,15 +970,19 @@ function renderKeyboardLegend() {
     renderKeyboardLegendInto(keyboardLegendGrid);
 }
 
+// Format elapsed time as M:SS.CC
+function formatElapsedTime(startTimeMs) {
+    const elapsed = (Date.now() - startTimeMs) / 1000;
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = Math.floor(elapsed % 60);
+    const centiseconds = Math.floor((elapsed % 1) * 100);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+}
+
 // Update timer
 function updateTimer() {
     if (!gameActive) return;
-    const elapsed = Date.now() - startTime;
-    const seconds = Math.floor(elapsed / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    const milliseconds = Math.floor((elapsed % 1000) / 10);
-    timerEl.textContent = `${minutes}:${String(remainingSeconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
+    timerEl.textContent = formatElapsedTime(startTime);
 }
 
 // Update composition display
@@ -3608,14 +3612,7 @@ function renderGrid() {
 
 function updateGridTimer() {
     if (!gridGameActive || !gridStartTime) return;
-
-    const elapsed = (Date.now() - gridStartTime) / 1000;
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = Math.floor(elapsed % 60);
-    const centiseconds = Math.floor((elapsed % 1) * 100);
-
-    document.getElementById('grid-timer').textContent =
-        `${minutes}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+    document.getElementById('grid-timer').textContent = formatElapsedTime(gridStartTime);
 }
 
 function updateGridStats() {
@@ -4954,19 +4951,10 @@ function updateChordGridCompositionDisplay() {
     el.style.color = '#333';
 }
 
-// Update chord-grid timer
 function updateChordGridTimer() {
     if (!chordGridGameActive || !chordGridStartTime) return;
-
-    const elapsed = (Date.now() - chordGridStartTime) / 1000;
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = Math.floor(elapsed % 60);
-    const centiseconds = Math.floor((elapsed % 1) * 100);
-
-    const timerEl = document.getElementById('chord-grid-timer');
-    if (timerEl) {
-        timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
-    }
+    const el = document.getElementById('chord-grid-timer');
+    if (el) el.textContent = formatElapsedTime(chordGridStartTime);
 }
 
 // Update chord-grid stats
