@@ -300,6 +300,7 @@ document.addEventListener('keydown', (e) => {
 // Chord-Grid keydown listener
 document.addEventListener('keydown', (event) => {
     if (chordGridGameActive) {
+        if (event.key === 'Tab') event.preventDefault();
         handleChordGridKeyPress(event);
     }
 });
