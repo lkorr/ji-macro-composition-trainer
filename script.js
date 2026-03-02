@@ -1,14 +1,11 @@
 // Game state
 let gameActive = false;
-let gameMode = 'interval'; // 'interval', 'chord', or 'adaptive'
+let gameMode = 'adaptive'; // 'adaptive' or 'adaptive-chord' (old modes 'interval' and 'chord' removed)
 let currentInterval = null;
 let currentChord = null;
 let questionCount = 0;
 let totalTime = 0;
-let intervalPool = [];
-let chordPool = [];
-let remainingIntervals = [];
-let remainingChords = [];
+let remainingIntervals = []; // Kept for compatibility (not actively used in adaptive modes)
 let startTime = null;
 let timerInterval = null;
 let questionStartTime = null;
@@ -17,14 +14,13 @@ let chordProgress = []; // For chord mode: array of entered intervals
 let repeatSlowThreshold = 5; // seconds
 
 // Adaptive mode state (for intervals)
-let adaptiveMode = false;
 let intervalStats = {}; // { 'num/denom': { attempts: 0, totalTime: 0, recentTimes: [], mastered: false, lastSeenQuestion: -1 } }
 let activeIntervals = []; // Currently unlocked intervals
 let allIntervalsSorted = []; // All intervals sorted by complexity
-let masteryThreshold = 2.5; // seconds
+let masteryThreshold = 3.5; // seconds
 let minAttemptsForMastery = 5;
 let newIntervalWeight = 3;
-let rollingAverageWindow = 10; // number of recent attempts to average for mastery check
+let rollingAverageWindow = 3; // number of recent attempts to average for mastery check
 let nonMasteredRate = 60; // percentage of questions that should be non-mastered intervals
 let displayMode = 'all'; // 'all', 'fraction', 'cents', 'name', 'rotate-fraction-cents', 'rotate-fraction-name', 'rotate-cents-name', 'rotate-all'
 let currentRotationIndex = 0; // Track current rotation state for cycling display modes
@@ -48,6 +44,13 @@ let chordTutorialActive = true;
 let newChordDrillCount = 0; // Track how many times the new chord has been drilled
 let newChordDrillTarget = 5; // Number of times to drill new chord before adding to mix
 let currentNewChord = null; // The chord currently being drilled
+let includeInversions = true; // When true, include chord inversions in the chord pool
+let randomStartingNote = false; // When true, start building chords from random positions
+let currentChordStartingPosition = 0; // Which note in the chord is the reference point (0 = root)
+let currentExpectedIntervals = []; // The transformed intervals for the current chord (accounts for starting position)
+let disabledChords = new Set(); // Chord keys disabled by user (won't appear in questions)
+let collapsedChordGroups = new Set(); // Collapsed chord groups in adaptive chord mode UI
+let collapsedCGChordGroups = new Set(); // Collapsed chord groups in chord-grid mode UI
 
 // Sound settings
 let synthType = 'sawtooth'; // 'sawtooth', 'sine', 'square', 'triangle'
@@ -59,32 +62,7 @@ let earTrainingMode = false; // hide target interval for ear training
 // Submit key
 let submitKey = '`'; // default submit key
 
-// Key mappings - default mappings
-const DEFAULT_PRIME_MAPPINGS = {
-    '1': { num: 2, denom: 1 },
-    '2': { num: 3, denom: 2 },
-    '3': { num: 5, denom: 4 },
-    '4': { num: 7, denom: 4 },
-    '5': { num: 11, denom: 8 },
-    '6': { num: 13, denom: 8 },
-    '7': { num: 17, denom: 16 },
-    '8': { num: 19, denom: 16 },
-    '9': { num: 23, denom: 16 },
-    '0': { num: 29, denom: 16 }
-};
-
-const DEFAULT_RECIPROCAL_MAPPINGS = {
-    'q': { num: 1, denom: 2 },
-    'w': { num: 2, denom: 3 },
-    'e': { num: 4, denom: 5 },
-    'r': { num: 4, denom: 7 },
-    't': { num: 8, denom: 11 },
-    'y': { num: 8, denom: 13 },
-    'u': { num: 16, denom: 17 },
-    'i': { num: 16, denom: 19 },
-    'o': { num: 16, denom: 23 },
-    'p': { num: 16, denom: 29 }
-};
+// Note: DEFAULT_PRIME_MAPPINGS and DEFAULT_RECIPROCAL_MAPPINGS now defined in data/keyMappings.js
 
 // Current mappings (can be customized)
 let primeMappings = { ...DEFAULT_PRIME_MAPPINGS };
@@ -93,77 +71,7 @@ let reciprocalMappings = { ...DEFAULT_RECIPROCAL_MAPPINGS };
 // All mappings combined
 let allMappings = {};
 
-// Interval names mapping
-const INTERVAL_NAMES = {
-    '16/15': 'minor semitone',
-    '15/14': 'major semitone',
-    '12/11': 'neutral second',
-    '11/10': 'greater undecimal neutral second',
-    '10/9': 'minor whole tone',
-    '9/8': 'major whole tone',
-    '8/7': 'septimal whole tone',
-    '7/6': 'septimal subminor third',
-    '6/5': 'minor third',
-    '5/4': 'major third',
-    '9/7': 'septimal supermajor third',
-    '4/3': 'perfect fourth',
-    '11/8': 'undecimal tritone',
-    '7/5': 'septimal tritone',
-    '10/7': 'septimal tritone',
-    '16/11': 'undecimal tritone',
-    '3/2': 'perfect fifth',
-    '14/9': 'septimal subminor sixth',
-    '8/5': 'minor sixth',
-    '5/3': 'major sixth',
-    '12/7': 'septimal supermajor sixth',
-    '7/4': 'harmonic seventh',
-    '16/9': 'Pythagorean minor seventh',
-    '9/5': 'minor seventh',
-    '20/11': 'lesser undecimal neutral seventh',
-    '11/6': 'neutral seventh',
-    '28/15': 'major seventh',
-    '15/8': 'major seventh',
-    '2/1': 'octave',
-    '17/16': 'semitone',
-    '18/17': 'semitone',
-    '19/16': 'undevicesimal augmented second',
-    '20/19': 'small semitone',
-    '21/20': 'minor semitone',
-    '22/21': 'undecimal semitone',
-    '13/12': 'tridecimal 2/3-tone',
-    '14/13': 'tridecimal 2/3-tone',
-    '13/11': 'tridecimal minor third',
-    '11/9': 'undecimal neutral third',
-    '16/13': 'tridecimal major third',
-    '13/10': 'tridecimal major third',
-    '21/16': 'augmented fourth',
-    '32/21': 'diminished fifth',
-    '13/9': 'tridecimal diminished sixth',
-    '18/13': 'tridecimal augmented fifth',
-    '20/13': 'tridecimal minor sixth',
-    '13/8': 'tridecimal neutral sixth',
-    '22/13': 'tridecimal major sixth',
-    '13/7': 'tridecimal minor seventh',
-    '27/14': 'septimal major seventh',
-    '23/16': 'vicesimotertial major second',
-    '32/23': 'vicesimotertial diminished seventh',
-    '23/18': 'vicesimotertial major third',
-    '23/20': 'vicesimotertial minor third',
-    '29/16': 'twenty-ninth harmonic',
-    '32/29': 'twenty-ninth subharmonic',
-    '27/16': 'Pythagorean major sixth',
-    '27/20': 'acute fourth',
-    '40/27': 'grave fifth',
-    '25/16': 'augmented fifth',
-    '32/25': 'diminished fourth',
-    '25/24': 'classic chromatic semitone',
-    '24/23': 'vicesimotertial semitone',
-    '25/21': 'quasi-diminished fourth',
-    '21/17': 'submajor third',
-    '17/14': 'supraminor third',
-    '25/18': 'augmented fourth',
-    '27/25': 'large limma'
-};
+// Note: INTERVAL_NAMES is now defined in data/intervalNames.js
 
 // Get interval name
 function getIntervalName(num, denom) {
@@ -255,229 +163,8 @@ function formatIntervalDisplay(num, denom) {
     return displayContent;
 }
 
-// Base chord definitions (harmonic notation with 1:1 root)
-const BASE_CHORD_TYPES = {
-    '4:5:6': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }],            // Major
-    '10:12:15': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }],         // Minor
-    '5:6:7': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 36, denom: 25 }],          // Diminished
-    '16:20:25': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 25, denom: 16 }],       // Augmented
-    '6:8:9': [{ num: 1, denom: 1 }, { num: 4, denom: 3 }, { num: 3, denom: 2 }],            // Sus4
-    '8:9:12': [{ num: 1, denom: 1 }, { num: 9, denom: 8 }, { num: 3, denom: 2 }],           // Sus2
-    '20:25:30:36': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }, { num: 9, denom: 5 }],    // Dominant 7th
-    '8:10:12:15': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }, { num: 15, denom: 8 }],    // Major 7th
-    '10:12:15:18': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }, { num: 9, denom: 5 }],    // Minor 7th
-    '4:5:6:7': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }, { num: 7, denom: 4 }],        // Harmonic 7th
-    '20:24:30:35': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }, { num: 7, denom: 4 }],    // Subminor 7th
-    '12:15:18:20': [{ num: 1, denom: 1 }, { num: 5, denom: 4 }, { num: 3, denom: 2 }, { num: 5, denom: 3 }],    // Major 6th
-    '30:36:45:50': [{ num: 1, denom: 1 }, { num: 6, denom: 5 }, { num: 3, denom: 2 }, { num: 5, denom: 3 }]     // Minor 6th
-};
-
-// Traditional chord names mapping
-const CHORD_NAMES = {
-    // Major chord variations
-    '4:5:6': 'Major',
-    '5:6:4': 'Major (from 3rd)',
-    '6:4:5': 'Major (from 5th)',
-    '5:6:8': 'Major 1st inv',
-    '6:8:10': 'Major 2nd inv',
-
-    // Minor chord variations
-    '10:12:15': 'Minor',
-    '12:15:10': 'Minor (from 3rd)',
-    '15:10:12': 'Minor (from 5th)',
-    '12:15:20': 'Minor 1st inv',
-    '15:20:24': 'Minor 2nd inv',
-
-    // Other triads
-    '5:6:7': 'Diminished',
-    '16:20:25': 'Augmented',
-    '6:8:9': 'Sus4',
-    '8:9:12': 'Sus2',
-
-    // 7th chords
-    '20:25:30:36': 'Dominant 7th',
-    '8:10:12:15': 'Major 7th',
-    '10:12:15:18': 'Minor 7th',
-    '4:5:6:7': 'Harmonic 7th',
-    '20:24:30:35': 'Subminor 7th',
-
-    // 6th chords
-    '12:15:18:20': 'Major 6th',
-    '30:36:45:50': 'Minor 6th'
-};
-
-// Generate chord inversions by using different notes as the root
-function generateInversion(baseChord, inversionIndex) {
-    // Get the original intervals
-    const intervals = BASE_CHORD_TYPES[baseChord];
-    if (!intervals || inversionIndex >= intervals.length || inversionIndex === 0) {
-        return null; // No inversion or invalid
-    }
-
-    // The new root is the interval at inversionIndex
-    const newRoot = intervals[inversionIndex];
-
-    // Build new intervals relative to the new root
-    const invertedIntervals = intervals.map(interval => {
-        // Divide each interval by the new root
-        const newNum = interval.num * newRoot.denom;
-        const newDenom = interval.denom * newRoot.num;
-        return reduceFraction(newNum, newDenom);
-    });
-
-    // Sort by value to get proper ascending order
-    invertedIntervals.sort((a, b) => (a.num / a.denom) - (b.num / b.denom));
-
-    return invertedIntervals;
-}
-
-// Generate inversion name
-function getInversionName(baseChord, inversionIndex) {
-    if (inversionIndex === 0) return baseChord; // Root position
-
-    // Parse base chord notation
-    const parts = baseChord.split(':').map(Number);
-    const intervals = BASE_CHORD_TYPES[baseChord];
-
-    if (!intervals || inversionIndex >= intervals.length) return baseChord;
-
-    // Rotate the harmonic series numbers
-    const rotated = [...parts.slice(inversionIndex), ...parts.slice(0, inversionIndex)];
-
-    // Generate new notation
-    return rotated.join(':');
-}
-
-// Full CHORD_TYPES including inversions
-let CHORD_TYPES = { ...BASE_CHORD_TYPES };
-
-// Add inversions for all chords
-for (const [baseName, intervals] of Object.entries(BASE_CHORD_TYPES)) {
-    for (let inv = 1; inv < intervals.length; inv++) {
-        const invertedIntervals = generateInversion(baseName, inv);
-        const inversionName = getInversionName(baseName, inv);
-        if (invertedIntervals && inversionName !== baseName) {
-            CHORD_TYPES[inversionName] = invertedIntervals;
-        }
-    }
-}
-
-// Add custom voicings (different root notes in harmonic series)
-// Major chord (4:5:6) variations
-// Root on 3rd (harmonic 5): intervals are 4/5, 1/1, 6/5
-CHORD_TYPES['5:6:4'] = [
-    { num: 4, denom: 5 },  // 4/5 below root
-    { num: 1, denom: 1 },  // root (was 3rd)
-    { num: 6, denom: 5 }   // 6/5 above root
-];
-
-// Root on 5th (harmonic 6): intervals are 2/3, 5/6, 1/1
-CHORD_TYPES['6:4:5'] = [
-    { num: 2, denom: 3 },  // 2/3 below root
-    { num: 5, denom: 6 },  // 5/6 below root
-    { num: 1, denom: 1 }   // root (was 5th)
-];
-
-// Minor chord (10:12:15) variations
-// Root on 3rd (harmonic 12): intervals are 5/6, 1/1, 5/4
-CHORD_TYPES['12:15:10'] = [
-    { num: 5, denom: 6 },  // 5/6 below root
-    { num: 1, denom: 1 },  // root (was 3rd)
-    { num: 5, denom: 4 }   // 5/4 above root
-];
-
-// Root on 5th (harmonic 15): intervals are 2/3, 4/5, 1/1
-CHORD_TYPES['15:10:12'] = [
-    { num: 2, denom: 3 },  // 2/3 below root
-    { num: 4, denom: 5 },  // 4/5 below root
-    { num: 1, denom: 1 }   // root (was 5th)
-];
-
-// Calculate chord complexity (similar to interval complexity)
-function getChordComplexity(chordKey) {
-    const intervals = CHORD_TYPES[chordKey];
-    if (!intervals) return 0;
-
-    // Complexity = sum of (numerator × denominator) for all intervals in chord
-    let complexity = 0;
-    for (const interval of intervals) {
-        complexity += interval.num * interval.denom;
-    }
-
-    // Add bonus complexity for number of notes (larger chords are harder)
-    complexity += intervals.length * 10;
-
-    return complexity;
-}
-
-// Initialize all chords in custom pedagogical order
-function initializeChordsSorted() {
-    // Custom order: Major variations first, then Minor variations, then others
-    const customOrder = [
-        // Major chord variations (root position, then different starting notes, then inversions)
-        '4:5:6',      // Major root position (1/1, 5/4, 3/2)
-        '5:6:4',      // Major starting on 3rd (different root note in harmonic series)
-        '6:4:5',      // Major starting on 5th (different root note in harmonic series)
-        '5:6:8',      // Major 1st inversion (bass on 3rd of chord)
-        // Note: need to add 2 more variations with different roots for completeness
-        '6:8:10',     // Major 2nd inversion (bass on 5th of chord)
-
-        // Minor chord variations (same pattern as major)
-        '10:12:15',   // Minor root position (1/1, 6/5, 3/2)
-        '12:15:10',   // Minor starting on 3rd
-        '15:10:12',   // Minor starting on 5th
-        '12:15:20',   // Minor 1st inversion
-        '15:20:24',   // Minor 2nd inversion
-
-        // Other triads
-        '5:6:7',      // Diminished
-        '16:20:25',   // Augmented
-        '6:8:9',      // Sus4
-        '8:9:12',     // Sus2
-
-        // 7th chords
-        '20:25:30:36',  // Dominant 7th
-        '8:10:12:15',   // Major 7th
-        '10:12:15:18',  // Minor 7th
-        '4:5:6:7',      // Harmonic 7th
-        '20:24:30:35',  // Subminor 7th
-
-        // 6th chords
-        '12:15:18:20',  // Major 6th
-        '30:36:45:50'   // Minor 6th
-    ];
-
-    // Build allChordsSorted array, including only chords that exist in CHORD_TYPES
-    allChordsSorted = [];
-    const addedKeys = new Set();
-
-    // First, add chords in the custom order
-    for (const key of customOrder) {
-        if (CHORD_TYPES[key]) {
-            allChordsSorted.push({
-                key: key,
-                intervals: CHORD_TYPES[key],
-                complexity: getChordComplexity(key),
-                name: CHORD_NAMES[key] || key
-            });
-            addedKeys.add(key);
-        }
-    }
-
-    // Then add any remaining chords not in the custom order
-    for (const key of Object.keys(CHORD_TYPES)) {
-        if (!addedKeys.has(key)) {
-            allChordsSorted.push({
-                key: key,
-                intervals: CHORD_TYPES[key],
-                complexity: getChordComplexity(key),
-                name: CHORD_NAMES[key] || key
-            });
-        }
-    }
-
-    return allChordsSorted;
-}
+// Note: BASE_CHORD_TYPES, CHORD_NAMES, CHORD_TYPES, generateInversion, getInversionName,
+// getChordComplexity, and initializeChordsSorted are now defined in data/chordTypes.js
 
 // DOM elements
 const mappingPanel = document.getElementById('mapping-panel');
@@ -519,6 +206,10 @@ function showMainMenu() {
     if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
     const gridModePanel = document.getElementById('grid-mode-panel');
     if (gridModePanel) gridModePanel.style.display = 'none';
+    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
+    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
+    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
+    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
     mappingPanel.style.display = 'none';
     gamePanel.style.display = 'none';
 }
@@ -531,6 +222,10 @@ function showAdaptiveMode() {
     if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
     const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
     if (adaptiveModePanel) adaptiveModePanel.style.display = 'block';
+    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
+    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
+    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
+    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
     gamePanel.style.display = 'none';
     updateAdaptiveStats();
 }
@@ -543,6 +238,10 @@ function showAdaptiveChordMode() {
     if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
     const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
     if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'block';
+    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
+    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
+    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
+    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
     gamePanel.style.display = 'none';
     updateAdaptiveChordStats();
 }
@@ -553,6 +252,10 @@ function showMappingConfig() {
     if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
     const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
     if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
+    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
+    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
+    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
+    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
     gamePanel.style.display = 'none';
     renderMappingConfig();
 }
@@ -565,6 +268,10 @@ function showGridMode() {
     if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
     const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
     if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
+    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
+    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
+    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
+    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
     const gridModePanel = document.getElementById('grid-mode-panel');
     if (gridModePanel) gridModePanel.style.display = 'block';
     gamePanel.style.display = 'none';
@@ -576,7 +283,46 @@ function showGame() {
     if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
     const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
     if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
+    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
+    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
+    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
+    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
     gamePanel.style.display = 'block';
+}
+
+function showChordGridMode() {
+    const mainMenuPanel = document.getElementById('main-menu-panel');
+    if (mainMenuPanel) mainMenuPanel.style.display = 'none';
+    mappingPanel.style.display = 'none';
+    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
+    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
+    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
+    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
+    const gridModePanel = document.getElementById('grid-mode-panel');
+    if (gridModePanel) gridModePanel.style.display = 'none';
+    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
+    if (chordGridModePanel) chordGridModePanel.style.display = 'block';
+    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
+    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
+    gamePanel.style.display = 'none';
+    updateCGStats();
+}
+
+function showChordGridGame() {
+    const mainMenuPanel = document.getElementById('main-menu-panel');
+    if (mainMenuPanel) mainMenuPanel.style.display = 'none';
+    mappingPanel.style.display = 'none';
+    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
+    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
+    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
+    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
+    const gridModePanel = document.getElementById('grid-mode-panel');
+    if (gridModePanel) gridModePanel.style.display = 'none';
+    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
+    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
+    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
+    if (chordGridGamePanel) chordGridGamePanel.style.display = 'block';
+    gamePanel.style.display = 'none';
 }
 
 // Event listeners
@@ -637,6 +383,11 @@ if (selectGridModeBtn) {
     selectGridModeBtn.addEventListener('click', showGridMode);
 }
 
+const selectChordGridModeBtn = document.getElementById('select-chord-grid-mode-btn');
+if (selectChordGridModeBtn) {
+    selectChordGridModeBtn.addEventListener('click', showChordGridMode);
+}
+
 // Back to main menu buttons
 const backToMainFromIntervalBtn = document.getElementById('back-to-main-from-interval-btn');
 if (backToMainFromIntervalBtn) {
@@ -676,6 +427,25 @@ if (chordResumeLevelBtn) {
                 alert('Please enter a valid level number (1 or higher)');
             }
         }
+    });
+}
+
+// Click handlers for level detail panels (Chord mode)
+const adaptiveChordLevelDisplay = document.getElementById('adaptive-chord-level-display');
+if (adaptiveChordLevelDisplay) {
+    adaptiveChordLevelDisplay.addEventListener('click', () => {
+        const detail = document.getElementById('adaptive-chord-level-detail');
+        const arrow = document.getElementById('adaptive-chord-level-arrow');
+        if (detail) toggleLevelDetail(adaptiveChordLevelDisplay, detail, arrow, activeChords);
+    });
+}
+
+const adaptiveLevelIndicator = document.getElementById('adaptive-level-indicator');
+if (adaptiveLevelIndicator) {
+    adaptiveLevelIndicator.addEventListener('click', () => {
+        const detail = document.getElementById('game-level-detail');
+        const arrow = document.getElementById('game-level-arrow');
+        if (detail) toggleLevelDetail(adaptiveLevelIndicator, detail, arrow, activeChords);
     });
 }
 
@@ -877,6 +647,14 @@ function saveSettings() {
     // Submit key input
     const submitKeyInput = document.getElementById('submit-key-input');
 
+    // Chord mode settings
+    const randomStartingNoteCheckbox = document.getElementById('random-starting-note-checkbox');
+    const includeInversionsCheckbox = document.getElementById('include-inversions-checkbox');
+
+    // Chord-Grid mode settings
+    const cgRandomStartCheckbox = document.getElementById('chord-grid-random-start-checkbox');
+    const cgInversionsCheckbox = document.getElementById('chord-grid-include-inversions-checkbox');
+
     // Update variables from inputs
     if (masteryInput) masteryThreshold = parseFloat(masteryInput.value);
     if (minAttemptsInput) minAttemptsForMastery = parseInt(minAttemptsInput.value);
@@ -893,6 +671,10 @@ function saveSettings() {
     if (enableSoundCheckbox !== null) enableSound = enableSoundCheckbox.checked;
     if (earTrainingCheckbox !== null) earTrainingMode = earTrainingCheckbox.checked;
     if (submitKeyInput) submitKey = submitKeyInput.value || '`';
+    if (randomStartingNoteCheckbox !== null) randomStartingNote = randomStartingNoteCheckbox.checked;
+    if (includeInversionsCheckbox !== null) includeInversions = includeInversionsCheckbox.checked;
+    if (cgRandomStartCheckbox !== null) chordGridRandomStart = cgRandomStartCheckbox.checked;
+    if (cgInversionsCheckbox !== null) chordGridIncludeInversions = cgInversionsCheckbox.checked;
 
     const settings = {
         // Adaptive mode settings
@@ -907,6 +689,18 @@ function saveSettings() {
         repeatSlowThreshold: repeatSlowThreshold,
         repeatSlowEnabled: repeatSlowCheckbox?.checked ?? true,
         submitKey: submitKey,
+
+        // Chord mode settings
+        randomStartingNote: randomStartingNote,
+        includeInversions: includeInversions,
+
+        // Chord-Grid settings
+        chordGridRandomStart: chordGridRandomStart,
+        chordGridIncludeInversions: chordGridIncludeInversions,
+        cgMasteryThreshold: document.getElementById('cg-mastery-threshold-input')?.value ?? 10,
+        cgMinAttempts: document.getElementById('cg-min-attempts-input')?.value ?? 5,
+        cgRollingWindow: document.getElementById('cg-rolling-average-window-input')?.value ?? 3,
+        cgNonMasteredRate: document.getElementById('cg-non-mastered-rate-input')?.value ?? 80,
 
         // Sound settings
         synthType: synthType,
@@ -940,6 +734,10 @@ function loadSettings() {
             if (settings.enableSound !== undefined) enableSound = settings.enableSound;
             if (settings.earTrainingMode !== undefined) earTrainingMode = settings.earTrainingMode;
             if (settings.submitKey !== undefined) submitKey = settings.submitKey;
+            if (settings.randomStartingNote !== undefined) randomStartingNote = settings.randomStartingNote;
+            if (settings.includeInversions !== undefined) includeInversions = settings.includeInversions;
+            if (settings.chordGridRandomStart !== undefined) chordGridRandomStart = settings.chordGridRandomStart;
+            if (settings.chordGridIncludeInversions !== undefined) chordGridIncludeInversions = settings.chordGridIncludeInversions;
 
             // Restore UI elements
             const masteryInput = document.getElementById('mastery-threshold-input');
@@ -958,6 +756,8 @@ function loadSettings() {
             const enableSoundCheckbox = document.getElementById('enable-sound-checkbox');
             const earTrainingCheckbox = document.getElementById('ear-training-checkbox');
             const submitKeyInput = document.getElementById('submit-key-input');
+            const randomStartingNoteCheckbox = document.getElementById('random-starting-note-checkbox');
+            const includeInversionsCheckbox = document.getElementById('include-inversions-checkbox');
 
             if (masteryInput) masteryInput.value = settings.masteryThreshold ?? 2;
             if (minAttemptsInput) minAttemptsInput.value = settings.minAttemptsForMastery ?? 5;
@@ -975,6 +775,8 @@ function loadSettings() {
             if (enableSoundCheckbox) enableSoundCheckbox.checked = settings.enableSound ?? true;
             if (earTrainingCheckbox) earTrainingCheckbox.checked = settings.earTrainingMode ?? false;
             if (submitKeyInput) submitKeyInput.value = settings.submitKey ?? '`';
+            if (randomStartingNoteCheckbox) randomStartingNoteCheckbox.checked = settings.randomStartingNote ?? false;
+            if (includeInversionsCheckbox) includeInversionsCheckbox.checked = settings.includeInversions ?? true;
 
             // Restore chord-specific UI elements
             const chordMasteryInput = document.getElementById('chord-mastery-threshold-input');
@@ -986,6 +788,21 @@ function loadSettings() {
             if (chordMinAttemptsInput) chordMinAttemptsInput.value = settings.minAttemptsForMastery ?? 5;
             if (chordRollingWindowInput) chordRollingWindowInput.value = settings.rollingAverageWindow ?? 3;
             if (chordNonMasteredRateInput) chordNonMasteredRateInput.value = settings.nonMasteredRate ?? 80;
+
+            // Restore chord-grid specific UI elements
+            const cgRandomStartCheckbox = document.getElementById('chord-grid-random-start-checkbox');
+            const cgInversionsCheckbox = document.getElementById('chord-grid-include-inversions-checkbox');
+            const cgMasteryInput = document.getElementById('cg-mastery-threshold-input');
+            const cgMinAttemptsInput = document.getElementById('cg-min-attempts-input');
+            const cgRollingWindowInput = document.getElementById('cg-rolling-average-window-input');
+            const cgNonMasteredRateInput = document.getElementById('cg-non-mastered-rate-input');
+
+            if (cgRandomStartCheckbox) cgRandomStartCheckbox.checked = settings.chordGridRandomStart ?? false;
+            if (cgInversionsCheckbox) cgInversionsCheckbox.checked = settings.chordGridIncludeInversions ?? true;
+            if (cgMasteryInput) cgMasteryInput.value = settings.cgMasteryThreshold ?? 10;
+            if (cgMinAttemptsInput) cgMinAttemptsInput.value = settings.cgMinAttempts ?? 5;
+            if (cgRollingWindowInput) cgRollingWindowInput.value = settings.cgRollingWindow ?? 3;
+            if (cgNonMasteredRateInput) cgNonMasteredRateInput.value = settings.cgNonMasteredRate ?? 80;
 
             return true;
         } catch (e) {
@@ -1039,10 +856,19 @@ document.addEventListener('DOMContentLoaded', () => {
         'ear-training-checkbox',
         'submit-key-input',
         // Chord-specific settings
+        'random-starting-note-checkbox',
+        'include-inversions-checkbox',
         'chord-mastery-threshold-input',
         'chord-min-attempts-input',
         'chord-rolling-average-window-input',
-        'chord-non-mastered-rate-input'
+        'chord-non-mastered-rate-input',
+        // Chord-Grid specific settings
+        'chord-grid-random-start-checkbox',
+        'chord-grid-include-inversions-checkbox',
+        'cg-mastery-threshold-input',
+        'cg-min-attempts-input',
+        'cg-rolling-average-window-input',
+        'cg-non-mastered-rate-input'
     ];
 
     settingsInputs.forEach(id => {
@@ -1064,6 +890,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeAdaptiveChordMode();
     }
     updateAdaptiveChordStats();
+
+    // Load chord-grid adaptive progress and display stats on page load
+    if (!loadCGAdaptiveProgress()) {
+        initializeCGAdaptiveMode();
+    }
+    updateCGStats();
 });
 
 
@@ -1199,126 +1031,7 @@ function shuffleArray(array) {
     }
 }
 
-// Get chord level configuration
-function getChordLevelConfig(level) {
-    const configs = {
-        1: { // Major & Minor
-            chords: ['4:5:6', '10:12:15'],
-            repeats: [10, 10],
-            weights: [1, 1]
-        },
-        2: { // Diminished & Augmented
-            chords: ['5:6:7', '16:20:25'],
-            repeats: [10, 10],
-            weights: [1, 1]
-        },
-        3: { // All Basic Triads
-            chords: ['4:5:6', '10:12:15', '5:6:7', '16:20:25'],
-            repeats: [10, 10, 10, 10],
-            weights: [1, 1, 1, 1]
-        },
-        4: { // Sus4 & Sus2
-            chords: ['6:8:9', '8:9:12'],
-            repeats: [10, 10],
-            weights: [1, 1]
-        },
-        5: { // All Triads (with sus emphasized)
-            chords: ['4:5:6', '10:12:15', '5:6:7', '16:20:25', '6:8:9', '8:9:12'],
-            repeats: [10, 10, 10, 10, 10, 10],
-            weights: [1, 1, 1, 1, 2, 2] // Sus chords have higher weight
-        },
-        6: { // Dominant, Major & Minor 7th
-            chords: ['20:25:30:36', '8:10:12:15', '10:12:15:18'],
-            repeats: [10, 10, 10],
-            weights: [1, 1, 1]
-        },
-        7: { // Harmonic & Subminor 7th
-            chords: ['4:5:6:7', '20:24:30:35'],
-            repeats: [10, 10],
-            weights: [1, 1]
-        },
-        8: { // All 7th Chords
-            chords: ['20:25:30:36', '8:10:12:15', '10:12:15:18', '4:5:6:7', '20:24:30:35'],
-            repeats: [10, 10, 10, 10, 10],
-            weights: [1, 1, 1, 1, 1]
-        },
-        9: { // Major & Minor 6th
-            chords: ['12:15:18:20', '30:36:45:50'],
-            repeats: [10, 10],
-            weights: [1, 1]
-        },
-        10: { // All Chords
-            chords: ['4:5:6', '10:12:15', '5:6:7', '16:20:25', '6:8:9', '8:9:12', '20:25:30:36', '8:10:12:15', '10:12:15:18'],
-            repeats: [10, 10, 10, 10, 10, 10, 10, 10, 10],
-            weights: [1, 1, 1, 1, 1, 1, 1, 1, 1]
-        }
-    };
-    return configs[level] || configs[1];
-}
-
-// Start chord game
-function startChordGame(chordLevel) {
-    // Read display mode setting
-    const displayModeSelect = document.getElementById('display-mode-select');
-    if (displayModeSelect) {
-        displayMode = displayModeSelect.value;
-        currentRotationIndex = 0; // Reset rotation when starting new game
-    }
-
-    // Read repeat slow settings
-    const repeatSlowCheckbox = document.getElementById('repeat-slow-checkbox');
-    const repeatSlowInput = document.getElementById('repeat-slow-input');
-    const repeatSlow = repeatSlowCheckbox && repeatSlowCheckbox.checked;
-    if (repeatSlow && repeatSlowInput) {
-        repeatSlowThreshold = parseFloat(repeatSlowInput.value) || 5;
-    }
-
-    // Save settings
-    saveSettings();
-
-    // Get chord configuration for this level
-    const config = getChordLevelConfig(chordLevel);
-
-    // Build weighted chord pool
-    chordPool = [];
-    for (let i = 0; i < config.chords.length; i++) {
-        const chordType = config.chords[i];
-        const repeats = config.repeats[i];
-        for (let j = 0; j < repeats; j++) {
-            chordPool.push(chordType);
-        }
-    }
-
-    // Shuffle the pool
-    shuffleArray(chordPool);
-    remainingChords = [...chordPool];
-
-    // Reset game state
-    gameActive = true;
-    gameMode = 'chord';
-    questionCount = 0;
-    totalTime = 0;
-    chordProgress = [];
-
-    // Hide adaptive level indicator
-    const levelIndicator = document.getElementById('adaptive-level-indicator');
-    if (levelIndicator) {
-        levelIndicator.style.display = 'none';
-    }
-
-    // Start timer
-    startTime = Date.now();
-    timerInterval = setInterval(updateTimer, 100);
-
-    // Render keyboard legend
-    renderKeyboardLegend();
-
-    // Show game panel
-    showGame();
-
-    // Start first question
-    nextChordQuestion();
-}
+// Note: Removed dead code - getChordLevelConfig() and startChordGame() (old non-adaptive chord mode)
 
 // Render keyboard legend
 function renderKeyboardLegend() {
@@ -1362,64 +1075,7 @@ function updateTimer() {
     timerEl.textContent = `${minutes}:${String(remainingSeconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
 }
 
-// Next question
-function nextQuestion() {
-    if (remainingIntervals.length === 0) {
-        endGame();
-        return;
-    }
-
-    // Get random interval, ensuring it's different from the last one
-    let randomIndex;
-    let attempts = 0;
-    const maxAttempts = 50;
-
-    do {
-        randomIndex = Math.floor(Math.random() * remainingIntervals.length);
-        currentInterval = remainingIntervals[randomIndex];
-        attempts++;
-
-        // If we have more than one interval available and this matches the last one, try again
-        if (remainingIntervals.length > 1 && lastInterval &&
-            currentInterval.num === lastInterval.num &&
-            currentInterval.denom === lastInterval.denom) {
-            continue;
-        }
-        break;
-    } while (attempts < maxAttempts);
-
-    // Remove from pool
-    remainingIntervals.splice(randomIndex, 1);
-
-    // Store as last interval
-    lastInterval = { num: currentInterval.num, denom: currentInterval.denom };
-
-    // Increment rotation index for next question (if in rotation mode)
-    if (displayMode.startsWith('rotate-')) {
-        currentRotationIndex++;
-    }
-
-    // Display target using the display mode (or hide for ear training)
-    if (earTrainingMode) {
-        targetIntervalEl.innerHTML = '<div style="font-size: 0.6em; color: #999;">🎵 Ear Training Mode</div>';
-    } else {
-        targetIntervalEl.innerHTML = formatIntervalDisplay(currentInterval.num, currentInterval.denom);
-    }
-
-    // Reset composition
-    currentComposition = [];
-    updateCompositionDisplay();
-
-    // Clear feedback
-    feedbackEl.textContent = '';
-    feedbackEl.className = 'feedback';
-
-    // Start question timer
-    questionStartTime = Date.now();
-
-    // Play interval audio
-    playIntervalAudio(currentInterval.num, currentInterval.denom);
-}
+// Note: Removed dead code - nextQuestion() (old interval mode)
 
 // Update composition display
 function updateCompositionDisplay() {
@@ -1565,15 +1221,17 @@ function intervalsMatch(entered, expected) {
 
 // Handle chord mode keypress
 function handleChordKeypress(e, key) {
-    const expectedIntervals = CHORD_TYPES[currentChord];
+    // Use the globally stored expected intervals (accounts for starting position transformation)
+    const expectedIntervals = currentExpectedIntervals.length > 0 ? currentExpectedIntervals : CHORD_TYPES[currentChord];
 
-    // Backspace - RESET ENTIRE CHORD
+    // Backspace - RESET ENTIRE CHORD (keep 1/1 auto-placed)
     if (key === 'backspace') {
         e.preventDefault();
         currentComposition = [{ num: 1, denom: 1 }];
-        chordProgress = [];
+        chordProgress = [{ num: 1, denom: 1 }];
         updateCompositionDisplay(); // This now updates piano roll automatically
         resetChordIntervalHighlights();
+        markIntervalCorrect('1/1');
         feedbackEl.textContent = '';
         feedbackEl.className = 'feedback';
         feedbackEl.style.background = '';
@@ -1665,8 +1323,9 @@ function handleChordKeypress(e, key) {
                                 activeChords.push(chordToAdd);
 
                                 // Show completion message
+                                const addedPosInfo = chordToAdd.positionLabel ? ` ${chordToAdd.positionLabel}` : '';
                                 setTimeout(() => {
-                                    feedbackEl.innerHTML = `<strong>✓ Drill complete!</strong><br>${chordToAdd.name} has been added to the mix!`;
+                                    feedbackEl.innerHTML = `<strong>✓ Drill complete!</strong><br>${chordToAdd.name}${addedPosInfo} has been added to the mix!`;
                                     feedbackEl.className = 'feedback';
                                     feedbackEl.style.background = '#d4edda';
                                     feedbackEl.style.color = '#155724';
@@ -1676,6 +1335,8 @@ function handleChordKeypress(e, key) {
                             // Reset drill tracking
                             currentNewChord = null;
                             newChordDrillCount = 0;
+                            adaptiveChordLevel = countBaseChords(activeChords);
+                            updateGameChordLevelDisplay();
                             saveAdaptiveChordProgress();
 
                             // Update progress display
@@ -1711,13 +1372,14 @@ function handleChordKeypress(e, key) {
                 }, 1300); // 300ms (last note) + 600ms (wiggle) + 400ms (chord sound)
             }
         } else {
-            // WRONG interval - play the wrong note, then reset entire chord
+            // WRONG interval - play the wrong note, then reset entire chord (keep 1/1 auto-placed)
             playSingleTone(product.num, product.denom);
 
             currentComposition = [{ num: 1, denom: 1 }];
-            chordProgress = [];
+            chordProgress = [{ num: 1, denom: 1 }];
             updateCompositionDisplay(); // This now updates piano roll automatically
             resetChordIntervalHighlights();
+            markIntervalCorrect('1/1');
 
             // Reset drill count if wrong answer during drilling (must be X in a row)
             if (gameMode === 'adaptive-chord' && currentNewChord && currentChord === currentNewChord) {
@@ -1794,7 +1456,8 @@ function renderChordPianoRoll(chordKey, enteredIntervals = [], currentCompositio
     const container = document.getElementById('chord-piano-roll');
     if (!container) return;
 
-    const intervals = CHORD_TYPES[chordKey];
+    // Use the globally stored expected intervals (accounts for starting position transformation)
+    const intervals = currentExpectedIntervals.length > 0 ? currentExpectedIntervals : CHORD_TYPES[chordKey];
     if (!intervals) return;
 
     // Calculate continuous positions in octaves for each interval
@@ -1865,50 +1528,7 @@ function updateChordPianoRoll() {
     renderChordPianoRoll(currentChord, chordProgress, currentValue);
 }
 
-// Next chord question
-function nextChordQuestion() {
-    if (remainingChords.length === 0) {
-        endGame();
-        return;
-    }
-
-    // Get chord type
-    const randomIndex = Math.floor(Math.random() * remainingChords.length);
-    currentChord = remainingChords.splice(randomIndex, 1)[0];
-
-    const expectedIntervals = CHORD_TYPES[currentChord];
-
-    // Get traditional name (or use harmonic notation if no traditional name exists)
-    const traditionalName = CHORD_NAMES[currentChord] || currentChord;
-
-    // Display target chord using traditional name with harmonic notation below
-    const intervalsHTML = expectedIntervals.map((int, idx) =>
-        `<span class="chord-interval" data-interval="${int.num}/${int.denom}">${int.num}/${int.denom}</span>`
-    ).join(', ');
-
-    targetIntervalEl.innerHTML = `
-        <h2>${traditionalName}</h2>
-        <div class="chord-harmonic-notation">${currentChord}</div>
-        <div class="chord-intervals">${intervalsHTML}</div>
-    `;
-
-    // Reset - start with 1/1 in composition
-    currentComposition = [{ num: 1, denom: 1 }];
-    chordProgress = [];
-    updateCompositionDisplay();
-
-    // Render piano roll visualization (arrow starts at 1/1)
-    renderChordPianoRoll(currentChord, [], { num: 1, denom: 1 });
-
-    // Clear feedback
-    feedbackEl.textContent = '';
-    feedbackEl.className = 'feedback';
-    feedbackEl.style.background = '';
-    feedbackEl.style.color = '';
-
-    // Start question timer
-    questionStartTime = Date.now();
-}
+// Note: Removed dead code - nextChordQuestion() (old non-adaptive chord mode)
 
 // Handle correct answer
 function handleCorrectAnswer() {
@@ -1930,9 +1550,10 @@ function handleCorrectAnswer() {
         }
     }
 
-    // Track stats for adaptive chord mode
+    // Track stats for adaptive chord mode (skip during drill phase — drill times shouldn't count toward mastery)
     if (gameMode === 'adaptive-chord' && currentChord) {
-        if (chordStats[currentChord]) {
+        const isDrilling = currentNewChord && currentChord === currentNewChord && newChordDrillCount < newChordDrillTarget;
+        if (!isDrilling && chordStats[currentChord]) {
             chordStats[currentChord].attempts++;
             chordStats[currentChord].totalTime += timeTaken;
             chordStats[currentChord].recentTimes.push(timeTaken);
@@ -1946,10 +1567,7 @@ function handleCorrectAnswer() {
     // Check if should repeat due to slow time
     const repeatSlowCheckbox = document.getElementById('repeat-slow-checkbox');
     if (repeatSlowCheckbox && repeatSlowCheckbox.checked && timeTaken > repeatSlowThreshold) {
-        if (gameMode === 'interval') {
-            remainingIntervals.push(currentInterval);
-            shuffleArray(remainingIntervals);
-        } else if (gameMode === 'adaptive') {
+        if (gameMode === 'adaptive') {
             remainingIntervals.push(currentInterval);
             shuffleArray(remainingIntervals);
         }
@@ -1990,11 +1608,7 @@ function handleCorrectAnswer() {
 
     // Wait a bit then move to next question
     setTimeout(() => {
-        if (gameMode === 'interval') {
-            nextQuestion();
-        } else if (gameMode === 'chord') {
-            nextChordQuestion();
-        } else if (gameMode === 'adaptive') {
+        if (gameMode === 'adaptive') {
             nextAdaptiveQuestion();
         } else if (gameMode === 'adaptive-chord') {
             nextAdaptiveChordQuestion();
@@ -2010,7 +1624,11 @@ skipBtn.addEventListener('click', () => {
     feedbackEl.style.color = '#856404';
 
     setTimeout(() => {
-        nextQuestion();
+        if (gameMode === 'adaptive') {
+            nextAdaptiveQuestion();
+        } else if (gameMode === 'adaptive-chord') {
+            nextAdaptiveChordQuestion();
+        }
     }, 2000);
 });
 
@@ -2689,56 +2307,34 @@ function updateGameChordProgress() {
 
     progressContainer.style.display = 'block';
 
-    // Build stats HTML
-    let html = '';
-
-    // Get current settings
     const currentMasteryThreshold = getCurrentMasteryThreshold();
     const currentMinAttempts = getCurrentMinAttemptsForMastery();
     const currentWindow = getCurrentRollingAverageWindow();
 
-    for (const chord of activeChords) {
-        const stats = chordStats[chord.key];
+    initDefaultCollapsedState(activeChords, collapsedChordGroups);
 
-        if (!stats) continue;
+    let html = buildGroupedChordHTML({
+        chordList: activeChords,
+        statsObj: chordStats,
+        disabledSet: disabledChords,
+        collapsedSet: collapsedChordGroups,
+        cssPrefix: 'game-stat',
+        masteryThreshold: currentMasteryThreshold,
+        minAttempts: currentMinAttempts,
+        rollingWindow: currentWindow,
+        showIntervals: true,
+        dataMode: 'chord'
+    });
 
-        // Calculate average using only the most recent N attempts (rolling window)
-        const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
-        const avgRecent = recentTimesWindow.length > 0
-            ? (recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length).toFixed(2)
-            : 'N/A';
-
-        const isMastered = stats.attempts >= currentMinAttempts && avgRecent !== 'N/A' && parseFloat(avgRecent) < currentMasteryThreshold;
-
-        const classes = ['game-stat-item'];
-        if (isMastered) classes.push('mastered');
-
-        // Format chord intervals for display
-        const intervalsDisplay = chord.intervals.map(i => `${i.num}/${i.denom}`).join(', ');
-
-        html += `
-            <div class="${classes.join(' ')}">
-                <div class="game-stat-interval">${chord.name}</div>
-                <div class="game-stat-details">
-                    <span class="game-stat-cents">${intervalsDisplay}</span>
-                </div>
-                <div class="game-stat-info">
-                    <span>Attempts: ${stats.attempts}</span>
-                    <span>Avg: ${avgRecent}s</span>
-                    ${isMastered ? '<span class="game-stat-badge mastered">✓ Mastered</span>' : '<span class="game-stat-badge learning">Learning</span>'}
-                </div>
-            </div>
-        `;
-    }
-
-    // Show drill progress if drilling
+    // Show drill progress if drilling (outside grouping)
     if (currentNewChord) {
         const newChord = allChordsSorted.find(c => c.key === currentNewChord);
         if (newChord) {
-            const newChordIntervalsDisplay = newChord.intervals.map(i => `${i.num}/${i.denom}`).join(', ');
+            const newChordIntervalsDisplay = newChord.expectedIntervals.map(i => `${i.num}/${i.denom}`).join(', ');
+            const newChordPosInfo = newChord.positionLabel ? ` <small>${newChord.positionLabel}</small>` : '';
             html += `
                 <div class="game-stat-item drilling">
-                    <div class="game-stat-interval">${newChord.name}</div>
+                    <div class="game-stat-interval">${newChord.name}${newChordPosInfo}</div>
                     <div class="game-stat-details">
                         <span class="game-stat-cents">${newChordIntervalsDisplay}</span>
                     </div>
@@ -2751,6 +2347,15 @@ function updateGameChordProgress() {
     }
 
     progressStats.innerHTML = html;
+
+    attachChordGroupHandlers(progressStats, {
+        chordList: activeChords,
+        disabledSet: disabledChords,
+        collapsedSet: collapsedChordGroups,
+        saveFunc: saveAdaptiveChordProgress,
+        updateFunc: updateGameChordProgress,
+        dataMode: 'chord'
+    });
 }
 
 // Update game level display in game panel
@@ -2813,10 +2418,8 @@ function updateAdaptiveStats() {
 
 // Initialize adaptive chord mode
 function initializeAdaptiveChordMode() {
-    // Initialize sorted chords if not already done
-    if (allChordsSorted.length === 0) {
-        initializeChordsSorted();
-    }
+    // Initialize sorted chords (expand starting positions if enabled, include inversions if enabled)
+    initializeChordsSorted(randomStartingNote, includeInversions);
 
     // Initialize stats for all chords
     chordStats = {};
@@ -2831,22 +2434,21 @@ function initializeAdaptiveChordMode() {
         };
     }
 
-    // Start with just major chord
-    const startingChords = ['4:5:6'];
+    // Start with the first chord entry (handles both expanded and non-expanded keys)
     activeChords = [];
-    for (const key of startingChords) {
-        const chord = allChordsSorted.find(c => c.key === key);
-        if (chord) {
-            activeChords.push(chord);
-        }
+    if (allChordsSorted.length > 0) {
+        activeChords.push(allChordsSorted[0]);
     }
 
     // Reset drill tracking
     newChordDrillCount = 0;
     currentNewChord = null;
 
-    // Set level to match number of active chords
-    adaptiveChordLevel = activeChords.length;
+    // Set tutorial sequence dynamically
+    chordTutorialSequence = allChordsSorted.length > 0 ? [allChordsSorted[0].key] : ['4:5:6'];
+
+    // Set level to match number of base chords
+    adaptiveChordLevel = countBaseChords(activeChords);
 
     // Save to localStorage
     saveAdaptiveChordProgress();
@@ -2858,18 +2460,77 @@ function loadAdaptiveChordProgress() {
     if (saved) {
         try {
             const data = JSON.parse(saved);
-            chordStats = data.chordStats || {};
-            activeChords = data.activeChords || [];
+            const savedExpandFlag = data.randomStartingNote || false;
+
+            // Initialize sorted chords with current flags
+            initializeChordsSorted(randomStartingNote, includeInversions);
+
+            // Set tutorial sequence dynamically
+            chordTutorialSequence = allChordsSorted.length > 0 ? [allChordsSorted[0].key] : ['4:5:6'];
+
+            // Check if expand flag changed - need migration
+            if (savedExpandFlag !== randomStartingNote) {
+                // Flag changed, migrate keys
+                const migratedStats = {};
+                const oldStats = data.chordStats || {};
+
+                if (randomStartingNote && !savedExpandFlag) {
+                    // Old keys are plain (e.g. "4:5:6"), new keys are compound (e.g. "4:5:6_sp0")
+                    for (const oldKey in oldStats) {
+                        const newKey = oldKey + '_sp0';
+                        migratedStats[newKey] = oldStats[oldKey];
+                    }
+                } else if (!randomStartingNote && savedExpandFlag) {
+                    // Old keys are compound (e.g. "4:5:6_sp0"), new keys are plain (e.g. "4:5:6")
+                    for (const oldKey in oldStats) {
+                        const newKey = oldKey.replace(/_sp\d+$/, '');
+                        // Only keep sp0 data (or first encountered) for plain key
+                        if (!migratedStats[newKey]) {
+                            migratedStats[newKey] = oldStats[oldKey];
+                        }
+                    }
+                }
+
+                chordStats = migratedStats;
+
+                // Migrate activeChords
+                const migratedActive = [];
+                const oldActive = data.activeChords || [];
+                for (const savedChord of oldActive) {
+                    const oldKey = savedChord.key || savedChord;
+                    let newKey;
+                    if (randomStartingNote && !savedExpandFlag) {
+                        newKey = oldKey + '_sp0';
+                    } else {
+                        newKey = oldKey.replace(/_sp\d+$/, '');
+                    }
+                    const chord = allChordsSorted.find(c => c.key === newKey);
+                    if (chord && !migratedActive.find(c => c.key === chord.key)) {
+                        migratedActive.push(chord);
+                    }
+                }
+                activeChords = migratedActive;
+
+                // Migrate currentNewChord
+                let oldNewChord = data.currentNewChord || null;
+                if (oldNewChord) {
+                    if (randomStartingNote && !savedExpandFlag) {
+                        oldNewChord = oldNewChord + '_sp0';
+                    } else {
+                        oldNewChord = oldNewChord.replace(/_sp\d+$/, '');
+                    }
+                }
+                currentNewChord = oldNewChord;
+            } else {
+                chordStats = data.chordStats || {};
+                activeChords = data.activeChords || [];
+                currentNewChord = data.currentNewChord || null;
+            }
+
             adaptiveChordLevel = data.adaptiveChordLevel || 1;
             chordTutorialIndex = data.chordTutorialIndex !== undefined ? data.chordTutorialIndex : 0;
             chordTutorialActive = data.chordTutorialActive !== undefined ? data.chordTutorialActive : true;
             newChordDrillCount = data.newChordDrillCount || 0;
-            currentNewChord = data.currentNewChord || null;
-
-            // Initialize sorted chords if not already done
-            if (allChordsSorted.length === 0) {
-                initializeChordsSorted();
-            }
 
             // Restore chord references in stats
             for (const key in chordStats) {
@@ -2879,14 +2540,19 @@ function loadAdaptiveChordProgress() {
                 }
             }
 
-            // Restore activeChords with full chord objects
-            activeChords = activeChords.map(savedChord => {
-                const key = savedChord.key || savedChord;
-                return allChordsSorted.find(c => c.key === key);
-            }).filter(c => c);
+            // Restore activeChords with full chord objects (if not already migrated)
+            if (!Array.isArray(activeChords[0]?.intervals)) {
+                activeChords = activeChords.map(savedChord => {
+                    const key = savedChord.key || savedChord;
+                    return allChordsSorted.find(c => c.key === key);
+                }).filter(c => c);
+            }
 
-            // Sync level with number of active chords
-            adaptiveChordLevel = activeChords.length;
+            // Restore disabled chords
+            disabledChords = new Set(data.disabledChords || []);
+
+            // Sync level with number of base chords
+            adaptiveChordLevel = countBaseChords(activeChords);
 
             return true;
         } catch (e) {
@@ -2906,7 +2572,10 @@ function saveAdaptiveChordProgress() {
         chordTutorialIndex: chordTutorialIndex,
         chordTutorialActive: chordTutorialActive,
         newChordDrillCount: newChordDrillCount,
-        currentNewChord: currentNewChord
+        currentNewChord: currentNewChord,
+        randomStartingNote: randomStartingNote,
+        includeInversions: includeInversions,
+        disabledChords: [...disabledChords]
     };
     localStorage.setItem('ji_adaptive_chord_progress', JSON.stringify(data));
 }
@@ -2924,23 +2593,21 @@ function resetAdaptiveChordProgress() {
     }
 }
 
-// Resume from specific chord level
+// Resume from specific chord level (input = number of base chords)
 function resumeFromChordLevel(targetLevel) {
     if (targetLevel < 1) {
         alert('Level must be 1 or higher');
         return;
     }
 
-    // Initialize sorted chords if not already done
-    if (allChordsSorted.length === 0) {
-        initializeChordsSorted();
-    }
+    // Initialize sorted chords with current flags
+    initializeChordsSorted(randomStartingNote, includeInversions);
 
-    let numChords = targetLevel;
+    let numBaseChords = targetLevel;
 
-    if (numChords > allChordsSorted.length) {
-        alert(`Maximum level is ${allChordsSorted.length}. Setting to maximum.`);
-        numChords = allChordsSorted.length;
+    if (numBaseChords > TOTAL_BASE_CHORDS) {
+        alert(`Maximum is ${TOTAL_BASE_CHORDS} base chords. Setting to maximum.`);
+        numBaseChords = TOTAL_BASE_CHORDS;
     }
 
     // Initialize stats for all chords
@@ -2956,16 +2623,18 @@ function resumeFromChordLevel(targetLevel) {
         };
     }
 
-    // Populate with the first numChords from allChordsSorted
+    // Get all variants for the first N base chords
+    const variantsToUnlock = getAllVariantsForFirstNBaseChords(numBaseChords, allChordsSorted);
+
     activeChords = [];
-    for (let i = 0; i < Math.min(numChords, allChordsSorted.length); i++) {
-        const chord = allChordsSorted[i];
+    for (let i = 0; i < variantsToUnlock.length; i++) {
+        const chord = variantsToUnlock[i];
         activeChords.push(chord);
 
         const chordKey = chord.key;
         if (chordStats[chordKey]) {
             // Mark earlier ones as mastered, leave the last few unmastered
-            if (i < numChords - 2) {
+            if (i < variantsToUnlock.length - 2) {
                 chordStats[chordKey].mastered = true;
                 chordStats[chordKey].attempts = 10;
                 chordStats[chordKey].totalTime = 10;
@@ -2985,8 +2654,8 @@ function resumeFromChordLevel(targetLevel) {
     chordTutorialIndex = 9999; // Skip tutorial
     chordTutorialActive = false;
 
-    // Set level to match number of active chords
-    adaptiveChordLevel = activeChords.length;
+    // Set level to match number of base chords
+    adaptiveChordLevel = countBaseChords(activeChords);
 
     // Save to localStorage
     saveAdaptiveChordProgress();
@@ -2995,7 +2664,7 @@ function resumeFromChordLevel(targetLevel) {
     updateAdaptiveChordStats();
     updateAdaptiveChordLevelDisplay();
 
-    alert(`Progress resumed! You now have ${numChords} chord${numChords !== 1 ? 's' : ''} unlocked.`);
+    alert(`Level ${adaptiveChordLevel} — ${activeChords.length} chord variant${activeChords.length !== 1 ? 's' : ''} unlocked.`);
 }
 
 // Start adaptive chord game
@@ -3070,14 +2739,16 @@ function startAdaptiveChordGame() {
 
 // Select weighted random chord
 function selectWeightedRandomChord() {
-    if (activeChords.length === 0) return null;
+    // Filter out disabled chords
+    const enabledChords = activeChords.filter(c => !disabledChords.has(c.key));
+    if (enabledChords.length === 0) return null;
 
-    const n = activeChords.length;
+    const n = enabledChords.length;
     const guaranteedWindow = 3 * n;
 
     // Check for chords that MUST appear
     const mustAppearChords = [];
-    for (const chord of activeChords) {
+    for (const chord of enabledChords) {
         const stats = chordStats[chord.key];
         if (stats) {
             const questionsSinceLastSeen = globalChordQuestionCounter - stats.lastSeenQuestion;
@@ -3104,7 +2775,7 @@ function selectWeightedRandomChord() {
     let masteredCount = 0;
     let nonMasteredCount = 0;
 
-    for (const chord of activeChords) {
+    for (const chord of enabledChords) {
         const stats = chordStats[chord.key];
         if (stats && stats.mastered) {
             masteredCount++;
@@ -3116,7 +2787,7 @@ function selectWeightedRandomChord() {
     const masteredBaseWeight = nonMasteredCount > 0 ? (100 - currentNonMasteredRate) / masteredCount : 1;
     const nonMasteredBaseWeight = nonMasteredCount > 0 ? currentNonMasteredRate / nonMasteredCount : 1;
 
-    for (const chord of activeChords) {
+    for (const chord of enabledChords) {
         const stats = chordStats[chord.key];
         let weight;
 
@@ -3185,27 +2856,47 @@ function nextAdaptiveChordQuestion() {
     globalChordQuestionCounter++;
     lastChord = currentChord;
 
+    // Look up the chord entry from allChordsSorted to get startingPosition and expectedIntervals
+    const chordEntry = allChordsSorted.find(c => c.key === currentChord);
+
+    // Use entry's pre-computed starting position and expected intervals
+    currentChordStartingPosition = chordEntry ? chordEntry.startingPosition : 0;
+    const expectedIntervals = chordEntry ? chordEntry.expectedIntervals : CHORD_TYPES[currentChord];
+
+    // Store the expected intervals globally for use in validation and rendering
+    currentExpectedIntervals = expectedIntervals;
+
     // Display the chord
-    const expectedIntervals = CHORD_TYPES[currentChord];
-    const traditionalName = CHORD_NAMES[currentChord] || currentChord;
+    const traditionalName = chordEntry ? chordEntry.name : (CHORD_NAMES[currentChord] || currentChord);
+    const harmonicNotation = chordEntry ? chordEntry.chordKey : currentChord;
 
     const intervalsHTML = expectedIntervals.map((int, idx) =>
         `<span class="chord-interval" data-interval="${int.num}/${int.denom}">${int.num}/${int.denom}</span>`
     ).join(', ');
 
+    // Generate starting position text
+    const positionLabel = chordEntry ? chordEntry.positionLabel : '';
+    const startingPositionText = positionLabel
+        ? `<div class="starting-position">Starting <strong>${positionLabel}</strong></div>`
+        : '';
+
     targetIntervalEl.innerHTML = `
         <h2>${traditionalName}</h2>
-        <div class="chord-harmonic-notation">${currentChord}</div>
+        ${startingPositionText}
+        <div class="chord-harmonic-notation">${harmonicNotation}</div>
         <div class="chord-intervals">${intervalsHTML}</div>
     `;
 
-    // Reset composition
+    // Reset composition and auto-place 1/1 as the first note
     currentComposition = [{ num: 1, denom: 1 }];
-    chordProgress = [];
+    chordProgress = [{ num: 1, denom: 1 }];
     updateCompositionDisplay();
 
-    // Render piano roll visualization (arrow starts at 1/1)
-    renderChordPianoRoll(currentChord, [], { num: 1, denom: 1 });
+    // Mark 1/1 as already entered in the UI
+    markIntervalCorrect('1/1');
+
+    // Render piano roll visualization with 1/1 already placed
+    renderChordPianoRoll(harmonicNotation, chordProgress, { num: 1, denom: 1 });
 
     // Clear feedback
     feedbackEl.textContent = '';
@@ -3227,9 +2918,10 @@ function checkAndUnlockNextChord() {
     const currentMinAttempts = getCurrentMinAttemptsForMastery();
     const currentWindow = getCurrentRollingAverageWindow();
 
-    // Check if all active chords are mastered
+    // Check if all active (non-disabled) chords are mastered
     let allMastered = true;
     for (const chord of activeChords) {
+        if (disabledChords.has(chord.key)) continue;
         const stats = chordStats[chord.key];
         if (!stats) continue;
 
@@ -3257,12 +2949,24 @@ function checkAndUnlockNextChord() {
             currentNewChord = nextChord.key;
             newChordDrillCount = 0;
 
-            // Update level
-            adaptiveChordLevel = activeChords.length + 1;
+            // Check if this chord introduces a new base chord
+            const nextBaseKey = getBaseChordForGrouping(nextChord.key);
+            const currentBases = getUniqueBaseChords(activeChords);
+            const isNewBaseChord = !currentBases.has(nextBaseKey);
+
+            if (isNewBaseChord) {
+                adaptiveChordLevel = currentBases.size + 1;
+            }
             updateGameChordLevelDisplay();
 
             // Show notification
-            feedbackEl.innerHTML = `<strong>🎉 Chord Level ${adaptiveChordLevel}! New chord unlocked!</strong><br>${nextChord.name} (${nextChord.key})<br><em>Practice this chord ${newChordDrillTarget} times before it's added to the mix</em>`;
+            const posInfo = nextChord.positionLabel ? ` ${nextChord.positionLabel}` : '';
+            if (isNewBaseChord) {
+                const baseName = CHORD_NAMES[nextBaseKey] || nextBaseKey;
+                feedbackEl.innerHTML = `<strong>🎉 Level ${adaptiveChordLevel}! New chord unlocked: ${baseName}!</strong><br>${nextChord.name}${posInfo} (${nextChord.chordKey})<br><em>Practice this chord ${newChordDrillTarget} times before it's added to the mix</em>`;
+            } else {
+                feedbackEl.innerHTML = `<strong>New variant unlocked: ${nextChord.name}${posInfo}!</strong><br>(${nextChord.chordKey})<br><em>Practice this chord ${newChordDrillTarget} times before it's added to the mix</em>`;
+            }
             feedbackEl.className = 'feedback';
             feedbackEl.style.background = '#d1ecf1';
             feedbackEl.style.color = '#0c5460';
@@ -3284,6 +2988,11 @@ function updateAdaptiveChordLevelDisplay() {
     if (levelNumberEl) {
         levelNumberEl.textContent = adaptiveChordLevel;
     }
+    // Refresh open detail panel
+    const detailPanel = document.getElementById('adaptive-chord-level-detail');
+    if (detailPanel && detailPanel.style.display !== 'none') {
+        detailPanel.innerHTML = buildLevelDetailHTML(activeChords);
+    }
 }
 
 // Update game chord level display in game panel
@@ -3292,7 +3001,265 @@ function updateGameChordLevelDisplay() {
     if (gameLevelNumberEl) {
         gameLevelNumberEl.textContent = adaptiveChordLevel;
     }
+    // Refresh open detail panel
+    const detailPanel = document.getElementById('game-level-detail');
+    if (detailPanel && detailPanel.style.display !== 'none') {
+        detailPanel.innerHTML = buildLevelDetailHTML(activeChords);
+    }
 }
+
+// Build HTML showing all unlocked base chords and their variants
+function buildLevelDetailHTML(activeChordsList) {
+    const { groups, groupOrder } = groupChordsHierarchically(activeChordsList);
+    let html = '';
+
+    for (const baseKey of groupOrder) {
+        const group = groups.get(baseKey);
+        const baseName = CHORD_NAMES[baseKey] || baseKey;
+        html += '<div class="base-chord-group">';
+        html += `<div class="base-chord-name">${baseName} (${baseKey})</div>`;
+
+        // Collect all variants
+        const variants = [];
+        if (group.header) {
+            const posLabel = group.header.positionLabel ? ` ${group.header.positionLabel}` : '';
+            variants.push(`${group.header.name}${posLabel}`);
+        }
+        for (const child of group.children) {
+            const posLabel = child.positionLabel ? ` ${child.positionLabel}` : '';
+            variants.push(`${child.name}${posLabel}`);
+        }
+
+        if (variants.length > 1) {
+            html += '<ul class="base-chord-variants">';
+            for (const v of variants) {
+                html += `<li>${v}</li>`;
+            }
+            html += '</ul>';
+        }
+
+        html += '</div>';
+    }
+
+    if (groupOrder.length === 0) {
+        html = '<p style="color: #666; text-align: center;">No chords unlocked yet.</p>';
+    }
+
+    return html;
+}
+
+// Toggle level detail panel visibility
+function toggleLevelDetail(displayEl, detailEl, arrowEl, chordsList) {
+    if (detailEl.style.display === 'none') {
+        detailEl.innerHTML = buildLevelDetailHTML(chordsList);
+        detailEl.style.display = 'block';
+        if (arrowEl) arrowEl.classList.add('expanded');
+    } else {
+        detailEl.style.display = 'none';
+        if (arrowEl) arrowEl.classList.remove('expanded');
+    }
+}
+
+// ===== CHORD GROUPING HELPERS =====
+
+// Group a chord list hierarchically by base chord
+function groupChordsHierarchically(chordList) {
+    const groups = new Map(); // baseKey -> { header: chord|null, children: chord[] }
+    const groupOrder = [];
+
+    for (const chord of chordList) {
+        const baseKey = getBaseChordForGrouping(chord.key);
+
+        if (!groups.has(baseKey)) {
+            groups.set(baseKey, { header: null, children: [] });
+            groupOrder.push(baseKey);
+        }
+
+        const group = groups.get(baseKey);
+        // Header = the entry where bareChordKey === baseKey AND startingPosition === 0
+        const bareChordKey = chord.key.includes('_sp') ? chord.key.split('_sp')[0] : chord.chordKey;
+        if (bareChordKey === baseKey && chord.startingPosition === 0) {
+            group.header = chord;
+        } else {
+            group.children.push(chord);
+        }
+    }
+
+    return { groups, groupOrder };
+}
+
+// Compute mastery state for a chord entry
+function computeChordMastery(chord, statsObj, masteryThreshold, minAttempts, rollingWindow) {
+    const stats = statsObj[chord.key];
+    if (!stats) return { stats: null, avgRecent: 'N/A', isMastered: false };
+
+    const recentTimesWindow = stats.recentTimes.slice(-rollingWindow);
+    const avgRecent = recentTimesWindow.length > 0
+        ? (recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length).toFixed(2)
+        : 'N/A';
+
+    const isMastered = stats.attempts >= minAttempts && avgRecent !== 'N/A' && parseFloat(avgRecent) < masteryThreshold;
+    return { stats, avgRecent, isMastered };
+}
+
+// Build HTML for a single chord stat item (used in both header and child positions)
+function buildChordItemHTML(chord, statsObj, disabledSet, masteryThreshold, minAttempts, rollingWindow, cssPrefix, showIntervals, isChild, toggleHTML) {
+    const { stats, avgRecent, isMastered } = computeChordMastery(chord, statsObj, masteryThreshold, minAttempts, rollingWindow);
+    if (!stats) return '';
+
+    const isDisabled = disabledSet.has(chord.key);
+    const itemClass = cssPrefix === 'game-stat' ? 'game-stat-item' : 'stat-item';
+    const classes = [itemClass];
+    if (isMastered) classes.push('mastered');
+    if (isDisabled) classes.push('disabled');
+    if (isChild) classes.push(cssPrefix === 'game-stat' ? 'child-game-stat-item' : 'child-stat-item');
+
+    const posInfo = chord.positionLabel ? ` <small>${chord.positionLabel}</small>` : '';
+
+    if (cssPrefix === 'game-stat') {
+        const intervalsDisplay = chord.expectedIntervals.map(i => `${i.num}/${i.denom}`).join(', ');
+        return `
+            <div class="${classes.join(' ')}" data-chord-key="${chord.key}" data-mode="${chord._dataMode || 'chord'}">
+                ${toggleHTML || ''}
+                <div class="game-stat-interval">${chord.name}${posInfo}</div>
+                <div class="game-stat-details">
+                    <span class="game-stat-cents">${intervalsDisplay}</span>
+                </div>
+                <div class="game-stat-info">
+                    <span>Attempts: ${stats.attempts}</span>
+                    <span>Avg: ${avgRecent}s</span>
+                    ${isMastered ? '<span class="game-stat-badge mastered">✓ Mastered</span>' : '<span class="game-stat-badge learning">Learning</span>'}
+                </div>
+            </div>`;
+    } else {
+        return `
+            <div class="${classes.join(' ')}" data-chord-key="${chord.key}" data-mode="${chord._dataMode || 'chord'}">
+                ${toggleHTML || ''}
+                <div class="stat-interval">${chord.name}${posInfo}</div>
+                <div class="stat-info">
+                    <span>Attempts: ${stats.attempts}</span>
+                    <span>Avg: ${avgRecent}s</span>
+                    ${isMastered ? '<span class="mastered-badge">✓ Mastered</span>' : ''}
+                </div>
+            </div>`;
+    }
+}
+
+// Build full grouped chord HTML
+function buildGroupedChordHTML(options) {
+    const { chordList, statsObj, disabledSet, collapsedSet, cssPrefix, masteryThreshold, minAttempts, rollingWindow, showIntervals, dataMode } = options;
+
+    // Tag each chord with its data-mode for HTML generation
+    const taggedList = chordList.map(c => ({ ...c, _dataMode: dataMode }));
+
+    const { groups, groupOrder } = groupChordsHierarchically(taggedList);
+
+    // For 'stat' prefix, wrap in stats-grid div (container is adaptive-stats, not the grid itself)
+    // For 'game-stat' prefix, don't wrap — the container element IS the grid (has class game-progress-stats)
+    const needsWrapper = cssPrefix !== 'game-stat';
+    let html = needsWrapper ? '<div class="stats-grid">' : '';
+
+    for (const baseKey of groupOrder) {
+        const group = groups.get(baseKey);
+        const hasChildren = group.children.length > 0;
+
+        if (!hasChildren && group.header) {
+            // Single item, no group wrapper needed — but wrap for consistent grid
+            html += `<div class="chord-group">`;
+            html += buildChordItemHTML(group.header, statsObj, disabledSet, masteryThreshold, minAttempts, rollingWindow, cssPrefix, showIntervals, false, '');
+            html += `</div>`;
+        } else if (hasChildren) {
+            const isCollapsed = collapsedSet.has(baseKey);
+            const arrow = isCollapsed ? '▶' : '▼';
+
+            html += `<div class="chord-group">`;
+
+            // Header (may be null if root position not yet unlocked)
+            if (group.header) {
+                const toggleHTML = `<div class="chord-group-toggle" data-base-chord="${baseKey}">${arrow}</div>`;
+                html += `<div class="group-header">`;
+                html += buildChordItemHTML(group.header, statsObj, disabledSet, masteryThreshold, minAttempts, rollingWindow, cssPrefix, showIntervals, false, toggleHTML);
+                html += `</div>`;
+            } else {
+                // No header — show a label with toggle
+                const baseName = CHORD_NAMES[baseKey] || baseKey;
+                html += `<div class="group-header group-header-label">`;
+                html += `<div class="chord-group-toggle" data-base-chord="${baseKey}">${arrow}</div>`;
+                html += `<span class="stat-interval">${baseName}</span>`;
+                html += `</div>`;
+            }
+
+            // Children
+            html += `<div class="chord-group-children${isCollapsed ? ' collapsed' : ''}">`;
+            for (const child of group.children) {
+                html += buildChordItemHTML(child, statsObj, disabledSet, masteryThreshold, minAttempts, rollingWindow, cssPrefix, showIntervals, true, '');
+            }
+            html += `</div>`;
+
+            html += `</div>`;
+        }
+    }
+
+    if (needsWrapper) html += '</div>';
+    return html;
+}
+
+// Attach event handlers for chord group toggles and disable clicks
+function attachChordGroupHandlers(container, options) {
+    const { chordList, disabledSet, collapsedSet, saveFunc, updateFunc, dataMode } = options;
+
+    // Toggle expand/collapse
+    container.querySelectorAll('.chord-group-toggle').forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const baseChord = toggle.dataset.baseChord;
+            if (collapsedSet.has(baseChord)) {
+                collapsedSet.delete(baseChord);
+            } else {
+                collapsedSet.add(baseChord);
+            }
+            updateFunc();
+        });
+    });
+
+    // Disable click on stat items
+    const itemSelector = dataMode === 'cg'
+        ? '.game-stat-item[data-chord-key], .stat-item[data-chord-key]'
+        : '.game-stat-item[data-chord-key], .stat-item[data-chord-key]';
+
+    container.querySelectorAll(itemSelector).forEach(el => {
+        el.addEventListener('click', (e) => {
+            // Don't toggle disable if user clicked the toggle arrow
+            if (e.target.closest('.chord-group-toggle')) return;
+
+            const key = el.dataset.chordKey;
+            if (disabledSet.has(key)) {
+                disabledSet.delete(key);
+            } else {
+                const enabledNow = chordList.filter(c => !disabledSet.has(c.key)).length;
+                if (enabledNow <= 1) return;
+                disabledSet.add(key);
+            }
+            saveFunc();
+            updateFunc();
+        });
+    });
+}
+
+// Initialize default collapsed state (collapse all groups that have children)
+function initDefaultCollapsedState(chordList, collapsedSet) {
+    if (collapsedSet._initialized) return;
+    const { groups, groupOrder } = groupChordsHierarchically(chordList);
+    for (const baseKey of groupOrder) {
+        const group = groups.get(baseKey);
+        if (group.children.length > 0) {
+            collapsedSet.add(baseKey);
+        }
+    }
+    collapsedSet._initialized = true;
+}
+
+// ===== END CHORD GROUPING HELPERS =====
 
 // Update adaptive chord stats display
 function updateAdaptiveChordStats() {
@@ -3308,41 +3275,38 @@ function updateAdaptiveChordStats() {
         }
     }
 
-    let html = `<div class="stats-grid">`;
-
-    // Get current settings
     const currentMasteryThreshold = getCurrentMasteryThreshold();
     const currentMinAttempts = getCurrentMinAttemptsForMastery();
     const currentWindow = getCurrentRollingAverageWindow();
 
-    for (const chord of activeChords) {
-        const stats = chordStats[chord.key];
-        if (!stats) continue;
+    initDefaultCollapsedState(activeChords, collapsedChordGroups);
 
-        // Calculate average using only the most recent N attempts (rolling window)
-        const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
-        const avgRecent = recentTimesWindow.length > 0
-            ? (recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length).toFixed(2)
-            : 'N/A';
+    let html = buildGroupedChordHTML({
+        chordList: activeChords,
+        statsObj: chordStats,
+        disabledSet: disabledChords,
+        collapsedSet: collapsedChordGroups,
+        cssPrefix: 'stat',
+        masteryThreshold: currentMasteryThreshold,
+        minAttempts: currentMinAttempts,
+        rollingWindow: currentWindow,
+        showIntervals: false,
+        dataMode: 'chord'
+    });
 
-        const isMastered = stats.attempts >= currentMinAttempts && avgRecent !== 'N/A' && parseFloat(avgRecent) < currentMasteryThreshold;
-
-        html += `
-            <div class="stat-item ${isMastered ? 'mastered' : ''}">
-                <div class="stat-interval">${chord.name}</div>
-                <div class="stat-info">
-                    <span>Attempts: ${stats.attempts}</span>
-                    <span>Avg: ${avgRecent}s</span>
-                    ${isMastered ? '<span class="mastered-badge">✓ Mastered</span>' : ''}
-                </div>
-            </div>
-        `;
-    }
-
-    html += '</div>';
-    html += `<p class="progress-text">Active chords: ${activeChords.length} / ${allChordsSorted.length}</p>`;
+    const enabledCount = activeChords.filter(c => !disabledChords.has(c.key)).length;
+    html += `<p class="progress-text">Active chords: ${enabledCount} / ${allChordsSorted.length} (${activeChords.length} unlocked)</p>`;
 
     statsEl.innerHTML = html;
+
+    attachChordGroupHandlers(statsEl, {
+        chordList: activeChords,
+        disabledSet: disabledChords,
+        collapsedSet: collapsedChordGroups,
+        saveFunc: saveAdaptiveChordProgress,
+        updateFunc: updateAdaptiveChordStats,
+        dataMode: 'chord'
+    });
 }
 
 // End game button
@@ -3807,7 +3771,1353 @@ function handleGridKeyPress(event) {
 
 // Add grid keydown listener to document
 document.addEventListener('keydown', (event) => {
+    // Chord+Grid combined mode takes priority
+    if (chordGridGameActive) {
+        handleChordGridKeyPress(event);
+        return;
+    }
     if (gridGameActive) {
         handleGridKeyPress(event);
     }
 });
+
+// ============================================================
+// CHORD + GRID COMBINED MODE
+// ============================================================
+
+// Chord-Grid game state
+let chordGridGameActive = false;
+let chordGridPhase = 'grid'; // 'grid' or 'chord'
+let chordGridSize = 10;
+let chordGridPlayerRow = 0;
+let chordGridPlayerCol = 0;
+let chordGridTargetRow = 0;
+let chordGridTargetCol = 0;
+let chordGridScore = 0;
+let chordGridStartTime = null;
+let chordGridTimerInterval = null;
+let chordGridTargetStartTime = null;
+let chordGridTotalTime = 0;
+let chordGridRandomStart = false;
+let chordGridIncludeInversions = true;
+
+// Chord-Grid chord state (separate from main chord mode)
+let cgCurrentChord = null;
+let cgCurrentExpectedIntervals = [];
+let cgCurrentStartingPosition = 0;
+let cgChordProgress = [];
+let cgCurrentComposition = [];
+let cgActiveChords = []; // progressively unlocked chords
+
+// Chord-Grid adaptive progression state
+let cgChordStats = {}; // { 'chordKey': { attempts, totalTime, recentTimes, mastered, lastSeenQuestion } }
+let cgAdaptiveLevel = 1;
+let cgLastChord = null;
+let cgGlobalQuestionCounter = 0;
+let cgNewChordDrillCount = 0;
+let cgNewChordDrillTarget = 5;
+let cgCurrentNewChord = null;
+let cgTutorialActive = true;
+let cgTutorialIndex = 0;
+let cgTutorialSequence = ['4:5:6'];
+let cgDisabledChords = new Set(); // Chord keys disabled by user (won't appear in questions)
+
+// Chord-Grid event listeners
+const chordGridSizeInput = document.getElementById('chord-grid-size-input');
+const chordGridSizeDisplay = document.getElementById('chord-grid-size-display');
+if (chordGridSizeInput && chordGridSizeDisplay) {
+    chordGridSizeInput.addEventListener('input', () => {
+        const newSize = parseInt(chordGridSizeInput.value);
+        chordGridSize = newSize;
+        chordGridSizeDisplay.textContent = newSize;
+    });
+}
+
+const backToMainFromChordGridBtn = document.getElementById('back-to-main-from-chord-grid-btn');
+if (backToMainFromChordGridBtn) {
+    backToMainFromChordGridBtn.addEventListener('click', () => {
+        if (chordGridGameActive) {
+            endChordGridGame();
+        }
+        showMainMenu();
+    });
+}
+
+const startChordGridBtn = document.getElementById('start-chord-grid-btn');
+if (startChordGridBtn) {
+    startChordGridBtn.addEventListener('click', () => {
+        initAudio();
+        startChordGridGame();
+    });
+}
+
+const resetChordGridBtn = document.getElementById('reset-chord-grid-btn');
+if (resetChordGridBtn) {
+    resetChordGridBtn.addEventListener('click', () => {
+        resetChordGridGame();
+    });
+}
+
+const endChordGridBtn = document.getElementById('end-chord-grid-btn');
+if (endChordGridBtn) {
+    endChordGridBtn.addEventListener('click', () => {
+        endChordGridGame();
+        showChordGridMode();
+        updateCGStats();
+    });
+}
+
+// Resume from specific chord-grid level button
+const cgResumeLevelBtn = document.getElementById('cg-resume-level-btn');
+if (cgResumeLevelBtn) {
+    cgResumeLevelBtn.addEventListener('click', () => {
+        const input = document.getElementById('cg-resume-level-input');
+        if (input) {
+            const targetLevel = parseInt(input.value);
+            if (targetLevel >= 1) {
+                resumeFromCGLevel(targetLevel);
+            } else {
+                alert('Please enter a valid level number (1 or higher)');
+            }
+        }
+    });
+}
+
+// Click handlers for level detail panels (CG mode)
+const cgLevelDisplay = document.getElementById('cg-level-display');
+if (cgLevelDisplay) {
+    cgLevelDisplay.addEventListener('click', () => {
+        const detail = document.getElementById('cg-level-detail');
+        const arrow = document.getElementById('cg-level-arrow');
+        if (detail) toggleLevelDetail(cgLevelDisplay, detail, arrow, cgActiveChords);
+    });
+}
+
+const cgLevelIndicator = document.getElementById('cg-level-indicator');
+if (cgLevelIndicator) {
+    cgLevelIndicator.addEventListener('click', () => {
+        const detail = document.getElementById('cg-game-level-detail');
+        const arrow = document.getElementById('cg-game-level-arrow');
+        if (detail) toggleLevelDetail(cgLevelIndicator, detail, arrow, cgActiveChords);
+    });
+}
+
+// Start the chord-grid game
+function startChordGridGame() {
+    // Read settings
+    const sizeInput = document.getElementById('chord-grid-size-input');
+    if (sizeInput) chordGridSize = parseInt(sizeInput.value);
+
+    const randomStartCheckbox = document.getElementById('chord-grid-random-start-checkbox');
+    chordGridRandomStart = randomStartCheckbox ? randomStartCheckbox.checked : false;
+
+    const cgInversionsCheckbox = document.getElementById('chord-grid-include-inversions-checkbox');
+    chordGridIncludeInversions = cgInversionsCheckbox ? cgInversionsCheckbox.checked : true;
+
+    // Load or initialize adaptive progress
+    if (!loadCGAdaptiveProgress()) {
+        initializeCGAdaptiveMode();
+    }
+
+    if (cgActiveChords.length === 0) {
+        alert('No chords available! Resetting...');
+        initializeCGAdaptiveMode();
+    }
+
+    // Reset game state
+    chordGridGameActive = true;
+    chordGridScore = 0;
+    chordGridTotalTime = 0;
+    chordGridStartTime = Date.now();
+    cgLastChord = null;
+    cgGlobalQuestionCounter = 0;
+
+    // Initialize player in center
+    chordGridPlayerRow = Math.floor(chordGridSize / 2);
+    chordGridPlayerCol = Math.floor(chordGridSize / 2);
+
+    // Select first chord and place target
+    selectNextChordGridChord();
+    placeChordGridTarget();
+
+    // Start timer
+    if (chordGridTimerInterval) clearInterval(chordGridTimerInterval);
+    chordGridTimerInterval = setInterval(updateChordGridTimer, 10);
+
+    // Show game panel and set grid phase
+    showChordGridGame();
+    setChordGridPhase('grid');
+
+    // Update level display
+    updateCGLevelDisplay();
+
+    // Render
+    renderChordGrid();
+    updateChordGridStats();
+    updateCGGameProgress();
+    renderChordGridKeyboardLegend();
+
+    // Focus grid
+    const container = document.getElementById('chord-grid-container');
+    if (container) container.focus();
+}
+
+// Initialize chord-grid adaptive mode
+function initializeCGAdaptiveMode() {
+    // Initialize sorted chords (expand starting positions if enabled, include inversions if enabled)
+    initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
+
+    cgChordStats = {};
+    for (const chord of allChordsSorted) {
+        cgChordStats[chord.key] = {
+            attempts: 0,
+            totalTime: 0,
+            recentTimes: [],
+            mastered: false,
+            lastSeenQuestion: -1,
+            chord: chord
+        };
+    }
+
+    // Start with the first chord entry
+    cgActiveChords = [];
+    if (allChordsSorted.length > 0) {
+        cgActiveChords.push(allChordsSorted[0]);
+    }
+
+    cgNewChordDrillCount = 0;
+    cgCurrentNewChord = null;
+    cgTutorialActive = true;
+    cgTutorialIndex = 0;
+
+    // Set tutorial sequence dynamically
+    cgTutorialSequence = allChordsSorted.length > 0 ? [allChordsSorted[0].key] : ['4:5:6'];
+
+    cgAdaptiveLevel = countBaseChords(cgActiveChords);
+
+    saveCGAdaptiveProgress();
+}
+
+// Load chord-grid adaptive progress
+function loadCGAdaptiveProgress() {
+    const saved = localStorage.getItem('ji_cg_adaptive_progress');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            const savedExpandFlag = data.chordGridRandomStart || false;
+
+            // Initialize sorted chords with current flags
+            initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
+
+            // Set tutorial sequence dynamically
+            cgTutorialSequence = allChordsSorted.length > 0 ? [allChordsSorted[0].key] : ['4:5:6'];
+
+            // Check if expand flag changed - need migration
+            if (savedExpandFlag !== chordGridRandomStart) {
+                const migratedStats = {};
+                const oldStats = data.cgChordStats || {};
+
+                if (chordGridRandomStart && !savedExpandFlag) {
+                    for (const oldKey in oldStats) {
+                        const newKey = oldKey + '_sp0';
+                        migratedStats[newKey] = oldStats[oldKey];
+                    }
+                } else if (!chordGridRandomStart && savedExpandFlag) {
+                    for (const oldKey in oldStats) {
+                        const newKey = oldKey.replace(/_sp\d+$/, '');
+                        if (!migratedStats[newKey]) {
+                            migratedStats[newKey] = oldStats[oldKey];
+                        }
+                    }
+                }
+
+                cgChordStats = migratedStats;
+
+                const migratedActive = [];
+                const oldActive = data.cgActiveChords || [];
+                for (const savedChord of oldActive) {
+                    const oldKey = savedChord.key || savedChord;
+                    let newKey;
+                    if (chordGridRandomStart && !savedExpandFlag) {
+                        newKey = oldKey + '_sp0';
+                    } else {
+                        newKey = oldKey.replace(/_sp\d+$/, '');
+                    }
+                    const chord = allChordsSorted.find(c => c.key === newKey);
+                    if (chord && !migratedActive.find(c => c.key === chord.key)) {
+                        migratedActive.push(chord);
+                    }
+                }
+                cgActiveChords = migratedActive;
+
+                let oldNewChord = data.cgCurrentNewChord || null;
+                if (oldNewChord) {
+                    if (chordGridRandomStart && !savedExpandFlag) {
+                        oldNewChord = oldNewChord + '_sp0';
+                    } else {
+                        oldNewChord = oldNewChord.replace(/_sp\d+$/, '');
+                    }
+                }
+                cgCurrentNewChord = oldNewChord;
+            } else {
+                cgChordStats = data.cgChordStats || {};
+                cgActiveChords = data.cgActiveChords || [];
+                cgCurrentNewChord = data.cgCurrentNewChord || null;
+            }
+
+            cgAdaptiveLevel = data.cgAdaptiveLevel || 1;
+            cgTutorialIndex = data.cgTutorialIndex !== undefined ? data.cgTutorialIndex : 0;
+            cgTutorialActive = data.cgTutorialActive !== undefined ? data.cgTutorialActive : true;
+            cgNewChordDrillCount = data.cgNewChordDrillCount || 0;
+
+            // Restore chord references
+            for (const key in cgChordStats) {
+                const chord = allChordsSorted.find(c => c.key === key);
+                if (chord) cgChordStats[key].chord = chord;
+            }
+
+            // Restore activeChords with full chord objects (if not already migrated)
+            if (!Array.isArray(cgActiveChords[0]?.intervals)) {
+                cgActiveChords = cgActiveChords.map(savedChord => {
+                    const key = savedChord.key || savedChord;
+                    return allChordsSorted.find(c => c.key === key);
+                }).filter(c => c);
+            }
+
+            // Restore disabled chords
+            cgDisabledChords = new Set(data.cgDisabledChords || []);
+
+            cgAdaptiveLevel = countBaseChords(cgActiveChords);
+            return true;
+        } catch (e) {
+            console.error('Failed to load CG adaptive progress:', e);
+            return false;
+        }
+    }
+    return false;
+}
+
+// Save chord-grid adaptive progress
+function saveCGAdaptiveProgress() {
+    const data = {
+        cgChordStats: cgChordStats,
+        cgActiveChords: cgActiveChords.map(c => ({ key: c.key })),
+        cgAdaptiveLevel: cgAdaptiveLevel,
+        cgTutorialIndex: cgTutorialIndex,
+        cgTutorialActive: cgTutorialActive,
+        cgNewChordDrillCount: cgNewChordDrillCount,
+        cgCurrentNewChord: cgCurrentNewChord,
+        chordGridRandomStart: chordGridRandomStart,
+        chordGridIncludeInversions: chordGridIncludeInversions,
+        cgDisabledChords: [...cgDisabledChords]
+    };
+    localStorage.setItem('ji_cg_adaptive_progress', JSON.stringify(data));
+}
+
+// Reset chord-grid adaptive progress
+function resetCGAdaptiveProgress() {
+    if (confirm('Are you sure you want to reset all Chords + Grid progress?')) {
+        localStorage.removeItem('ji_cg_adaptive_progress');
+        cgTutorialIndex = 0;
+        cgTutorialActive = true;
+        initializeCGAdaptiveMode();
+        updateCGStats();
+        updateCGLevelDisplay();
+        alert('Chords + Grid progress reset!');
+    }
+}
+
+// Resume from specific chord-grid level (input = number of base chords)
+function resumeFromCGLevel(targetLevel) {
+    if (targetLevel < 1) {
+        alert('Level must be 1 or higher');
+        return;
+    }
+
+    // Initialize sorted chords with current flags
+    initializeChordsSorted(chordGridRandomStart, chordGridIncludeInversions);
+
+    let numBaseChords = targetLevel;
+    if (numBaseChords > TOTAL_BASE_CHORDS) {
+        alert(`Maximum is ${TOTAL_BASE_CHORDS} base chords. Setting to maximum.`);
+        numBaseChords = TOTAL_BASE_CHORDS;
+    }
+
+    cgChordStats = {};
+    for (const chord of allChordsSorted) {
+        cgChordStats[chord.key] = {
+            attempts: 0,
+            totalTime: 0,
+            recentTimes: [],
+            mastered: false,
+            lastSeenQuestion: -1,
+            chord: chord
+        };
+    }
+
+    // Get all variants for the first N base chords
+    const variantsToUnlock = getAllVariantsForFirstNBaseChords(numBaseChords, allChordsSorted);
+
+    cgActiveChords = [];
+    for (let i = 0; i < variantsToUnlock.length; i++) {
+        const chord = variantsToUnlock[i];
+        cgActiveChords.push(chord);
+        if (cgChordStats[chord.key]) {
+            if (i < variantsToUnlock.length - 2) {
+                cgChordStats[chord.key].mastered = true;
+                cgChordStats[chord.key].attempts = 10;
+                cgChordStats[chord.key].totalTime = 10;
+                cgChordStats[chord.key].recentTimes = [1, 1, 1, 1, 1];
+            } else {
+                cgChordStats[chord.key].attempts = 3;
+                cgChordStats[chord.key].totalTime = 12;
+                cgChordStats[chord.key].recentTimes = [4, 4, 4];
+            }
+        }
+    }
+
+    cgNewChordDrillCount = 0;
+    cgCurrentNewChord = null;
+    cgTutorialIndex = 9999;
+    cgTutorialActive = false;
+    cgAdaptiveLevel = countBaseChords(cgActiveChords);
+
+    saveCGAdaptiveProgress();
+    updateCGStats();
+    updateCGLevelDisplay();
+
+    alert(`Level ${cgAdaptiveLevel} — ${cgActiveChords.length} chord variant${cgActiveChords.length !== 1 ? 's' : ''} unlocked.`);
+}
+
+// Helper functions to get CG settings
+function getCGMasteryThreshold() {
+    const input = document.getElementById('cg-mastery-threshold-input');
+    return input ? parseFloat(input.value) : 10;
+}
+
+function getCGMinAttempts() {
+    const input = document.getElementById('cg-min-attempts-input');
+    return input ? parseInt(input.value) : 5;
+}
+
+function getCGRollingWindow() {
+    const input = document.getElementById('cg-rolling-average-window-input');
+    return input ? parseInt(input.value) : 3;
+}
+
+function getCGNonMasteredRate() {
+    const input = document.getElementById('cg-non-mastered-rate-input');
+    return input ? parseInt(input.value) : 80;
+}
+
+// Update chord-grid level display
+function updateCGLevelDisplay() {
+    const levelEl = document.getElementById('cg-level-number');
+    if (levelEl) levelEl.textContent = cgAdaptiveLevel;
+    const gameLevelEl = document.getElementById('cg-game-level-number');
+    if (gameLevelEl) gameLevelEl.textContent = cgAdaptiveLevel;
+    // Refresh open detail panels
+    const detailPanel = document.getElementById('cg-level-detail');
+    if (detailPanel && detailPanel.style.display !== 'none') {
+        detailPanel.innerHTML = buildLevelDetailHTML(cgActiveChords);
+    }
+    const gameDetailPanel = document.getElementById('cg-game-level-detail');
+    if (gameDetailPanel && gameDetailPanel.style.display !== 'none') {
+        gameDetailPanel.innerHTML = buildLevelDetailHTML(cgActiveChords);
+    }
+}
+
+// Update chord-grid stats display
+function updateCGStats() {
+    const statsEl = document.getElementById('cg-stats');
+    if (!statsEl) return;
+
+    updateCGLevelDisplay();
+
+    if (cgActiveChords.length === 0) {
+        if (!loadCGAdaptiveProgress() || cgActiveChords.length === 0) {
+            statsEl.innerHTML = '<p>Click "Start / Continue" to begin!</p>';
+            return;
+        }
+    }
+
+    const currentThreshold = getCGMasteryThreshold();
+    const currentMinAttempts = getCGMinAttempts();
+    const currentWindow = getCGRollingWindow();
+
+    initDefaultCollapsedState(cgActiveChords, collapsedCGChordGroups);
+
+    let html = buildGroupedChordHTML({
+        chordList: cgActiveChords,
+        statsObj: cgChordStats,
+        disabledSet: cgDisabledChords,
+        collapsedSet: collapsedCGChordGroups,
+        cssPrefix: 'stat',
+        masteryThreshold: currentThreshold,
+        minAttempts: currentMinAttempts,
+        rollingWindow: currentWindow,
+        showIntervals: false,
+        dataMode: 'cg'
+    });
+
+    const cgEnabledCount = cgActiveChords.filter(c => !cgDisabledChords.has(c.key)).length;
+    html += `<p class="progress-text">Active chords: ${cgEnabledCount} / ${allChordsSorted.length} (${cgActiveChords.length} unlocked)</p>`;
+    statsEl.innerHTML = html;
+
+    attachChordGroupHandlers(statsEl, {
+        chordList: cgActiveChords,
+        disabledSet: cgDisabledChords,
+        collapsedSet: collapsedCGChordGroups,
+        saveFunc: saveCGAdaptiveProgress,
+        updateFunc: updateCGStats,
+        dataMode: 'cg'
+    });
+}
+
+// Update chord-grid game progress display (in-game)
+function updateCGGameProgress() {
+    const progressContainer = document.getElementById('cg-game-interval-progress');
+    const progressStats = document.getElementById('cg-game-progress-stats');
+
+    if (!progressContainer || !progressStats) return;
+
+    progressContainer.style.display = 'block';
+
+    const currentThreshold = getCGMasteryThreshold();
+    const currentMinAttempts = getCGMinAttempts();
+    const currentWindow = getCGRollingWindow();
+
+    initDefaultCollapsedState(cgActiveChords, collapsedCGChordGroups);
+
+    let html = buildGroupedChordHTML({
+        chordList: cgActiveChords,
+        statsObj: cgChordStats,
+        disabledSet: cgDisabledChords,
+        collapsedSet: collapsedCGChordGroups,
+        cssPrefix: 'game-stat',
+        masteryThreshold: currentThreshold,
+        minAttempts: currentMinAttempts,
+        rollingWindow: currentWindow,
+        showIntervals: true,
+        dataMode: 'cg'
+    });
+
+    // Show drill progress if drilling (outside grouping)
+    if (cgCurrentNewChord) {
+        const newChord = allChordsSorted.find(c => c.key === cgCurrentNewChord);
+        if (newChord) {
+            const newChordIntervalsDisplay = newChord.expectedIntervals.map(i => `${i.num}/${i.denom}`).join(', ');
+            const newChordPosInfo = newChord.positionLabel ? ` <small>${newChord.positionLabel}</small>` : '';
+            html += `
+                <div class="game-stat-item drilling">
+                    <div class="game-stat-interval">${newChord.name}${newChordPosInfo}</div>
+                    <div class="game-stat-details">
+                        <span class="game-stat-cents">${newChordIntervalsDisplay}</span>
+                    </div>
+                    <div class="game-stat-info">
+                        <span class="game-stat-badge drilling">Drilling: ${cgNewChordDrillCount}/${cgNewChordDrillTarget}</span>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    progressStats.innerHTML = html;
+
+    attachChordGroupHandlers(progressStats, {
+        chordList: cgActiveChords,
+        disabledSet: cgDisabledChords,
+        collapsedSet: collapsedCGChordGroups,
+        saveFunc: saveCGAdaptiveProgress,
+        updateFunc: updateCGGameProgress,
+        dataMode: 'cg'
+    });
+}
+
+// Weighted random chord selection for chord-grid mode
+function selectWeightedRandomCGChord() {
+    // Filter out disabled chords
+    const enabledChords = cgActiveChords.filter(c => !cgDisabledChords.has(c.key));
+    if (enabledChords.length === 0) return null;
+
+    const n = enabledChords.length;
+    const guaranteedWindow = 3 * n;
+
+    // Check for chords that MUST appear
+    const mustAppearChords = [];
+    for (const chord of enabledChords) {
+        const stats = cgChordStats[chord.key];
+        if (stats) {
+            const questionsSinceLastSeen = cgGlobalQuestionCounter - stats.lastSeenQuestion;
+            if (stats.lastSeenQuestion === -1 || questionsSinceLastSeen >= guaranteedWindow) {
+                mustAppearChords.push(chord);
+            }
+        }
+    }
+
+    if (mustAppearChords.length > 0) {
+        return mustAppearChords[Math.floor(Math.random() * mustAppearChords.length)];
+    }
+
+    // Weighted random selection
+    const chordWeights = [];
+    let totalWeight = 0;
+    const currentThreshold = getCGMasteryThreshold();
+    const currentNonMasteredRate = getCGNonMasteredRate();
+    const currentWindow = getCGRollingWindow();
+
+    let masteredCount = 0;
+    let nonMasteredCount = 0;
+
+    for (const chord of enabledChords) {
+        const stats = cgChordStats[chord.key];
+        if (stats && stats.mastered) masteredCount++;
+        else nonMasteredCount++;
+    }
+
+    const masteredBaseWeight = nonMasteredCount > 0 ? (100 - currentNonMasteredRate) / masteredCount : 1;
+    const nonMasteredBaseWeight = nonMasteredCount > 0 ? currentNonMasteredRate / nonMasteredCount : 1;
+
+    for (const chord of enabledChords) {
+        const stats = cgChordStats[chord.key];
+        let weight;
+
+        if (stats && stats.mastered) {
+            weight = masteredBaseWeight;
+        } else if (stats && stats.recentTimes.length > 0) {
+            const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
+            const avgTime = recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length;
+            weight = nonMasteredBaseWeight * (1 + avgTime / currentThreshold);
+        } else {
+            weight = nonMasteredBaseWeight;
+        }
+
+        chordWeights.push({ chord, weight });
+        totalWeight += weight;
+    }
+
+    let random = Math.random() * totalWeight;
+    for (const item of chordWeights) {
+        random -= item.weight;
+        if (random <= 0) return item.chord;
+    }
+
+    return chordWeights[chordWeights.length - 1].chord;
+}
+
+// Check and unlock next chord in chord-grid mode
+function checkAndUnlockNextCGChord() {
+    const currentThreshold = getCGMasteryThreshold();
+    const currentMinAttempts = getCGMinAttempts();
+    const currentWindow = getCGRollingWindow();
+
+    let allMastered = true;
+    for (const chord of cgActiveChords) {
+        const stats = cgChordStats[chord.key];
+        if (!stats) continue;
+
+        const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
+        const avgRecent = recentTimesWindow.length > 0
+            ? recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length
+            : 999;
+
+        const isMastered = stats.attempts >= currentMinAttempts && avgRecent < currentThreshold;
+        stats.mastered = isMastered;
+        if (!isMastered && !cgDisabledChords.has(chord.key)) allMastered = false;
+    }
+
+    if (allMastered && cgActiveChords.length < allChordsSorted.length && !cgCurrentNewChord) {
+        const activeKeys = new Set(cgActiveChords.map(c => c.key));
+        const nextChord = allChordsSorted.find(c => !activeKeys.has(c.key));
+
+        if (nextChord) {
+            cgCurrentNewChord = nextChord.key;
+            cgNewChordDrillCount = 0;
+
+            // Check if this chord introduces a new base chord
+            const nextBaseKey = getBaseChordForGrouping(nextChord.key);
+            const currentBases = getUniqueBaseChords(cgActiveChords);
+            const isNewBaseChord = !currentBases.has(nextBaseKey);
+
+            if (isNewBaseChord) {
+                cgAdaptiveLevel = currentBases.size + 1;
+            }
+            updateCGLevelDisplay();
+
+            const feedbackEl = document.getElementById('chord-grid-feedback');
+            if (feedbackEl) {
+                const cgPosInfo = nextChord.positionLabel ? ` ${nextChord.positionLabel}` : '';
+                if (isNewBaseChord) {
+                    const baseName = CHORD_NAMES[nextBaseKey] || nextBaseKey;
+                    feedbackEl.innerHTML = `<strong>Level ${cgAdaptiveLevel}! New chord unlocked: ${baseName}!</strong><br>${nextChord.name}${cgPosInfo} (${nextChord.chordKey})<br><em>Practice ${cgNewChordDrillTarget} times before it's added to the mix</em>`;
+                } else {
+                    feedbackEl.innerHTML = `<strong>New variant unlocked: ${nextChord.name}${cgPosInfo}!</strong><br>(${nextChord.chordKey})<br><em>Practice ${cgNewChordDrillTarget} times before it's added to the mix</em>`;
+                }
+                feedbackEl.className = 'feedback';
+                feedbackEl.style.background = '#d1ecf1';
+                feedbackEl.style.color = '#0c5460';
+            }
+
+            saveCGAdaptiveProgress();
+        }
+    }
+
+    if (chordGridScore % 5 === 0) {
+        saveCGAdaptiveProgress();
+    }
+}
+
+// End the chord-grid game
+function endChordGridGame() {
+    chordGridGameActive = false;
+    if (chordGridTimerInterval) {
+        clearInterval(chordGridTimerInterval);
+        chordGridTimerInterval = null;
+    }
+    saveCGAdaptiveProgress();
+}
+
+// Reset the chord-grid game (resets adaptive progress)
+function resetChordGridGame() {
+    endChordGridGame();
+    resetCGAdaptiveProgress();
+}
+
+// Select next chord for chord-grid mode (adaptive weighted)
+function selectNextChordGridChord() {
+    if (cgActiveChords.length === 0) return;
+
+    // Drilling new chord
+    if (cgCurrentNewChord && cgNewChordDrillCount < cgNewChordDrillTarget) {
+        cgCurrentChord = cgCurrentNewChord;
+    }
+    // Tutorial
+    else if (cgTutorialActive && cgTutorialIndex < cgTutorialSequence.length) {
+        cgCurrentChord = cgTutorialSequence[cgTutorialIndex];
+    }
+    // Normal weighted selection
+    else {
+        cgTutorialActive = false;
+        let attempts = 0;
+        const maxAttempts = 50;
+
+        do {
+            const selectedChord = selectWeightedRandomCGChord();
+            if (!selectedChord) break;
+            cgCurrentChord = selectedChord.key;
+            attempts++;
+            if (cgActiveChords.length > 1 && cgLastChord && cgCurrentChord === cgLastChord) continue;
+            break;
+        } while (attempts < maxAttempts);
+    }
+
+    // Update tracking
+    if (cgChordStats[cgCurrentChord]) {
+        cgChordStats[cgCurrentChord].lastSeenQuestion = cgGlobalQuestionCounter;
+    }
+    cgGlobalQuestionCounter++;
+    cgLastChord = cgCurrentChord;
+
+    // Look up the chord entry from allChordsSorted
+    const cgChordEntry = allChordsSorted.find(c => c.key === cgCurrentChord);
+
+    // Use entry's pre-computed starting position and expected intervals
+    cgCurrentStartingPosition = cgChordEntry ? cgChordEntry.startingPosition : 0;
+    cgCurrentExpectedIntervals = cgChordEntry ? cgChordEntry.expectedIntervals : CHORD_TYPES[cgCurrentChord];
+
+    // Reset chord building state
+    cgChordProgress = [];
+    cgCurrentComposition = [{ num: 1, denom: 1 }];
+
+    // Update chord display
+    updateChordGridChordDisplay();
+}
+
+// Update the chord display in the game panel
+function updateChordGridChordDisplay() {
+    const nameEl = document.getElementById('chord-grid-chord-name');
+    const notationEl = document.getElementById('chord-grid-chord-notation');
+    const intervalsEl = document.getElementById('chord-grid-chord-intervals');
+    const startPosEl = document.getElementById('chord-grid-starting-position');
+
+    if (!nameEl) return;
+
+    // Look up the chord entry
+    const cgDisplayEntry = allChordsSorted.find(c => c.key === cgCurrentChord);
+    const traditionalName = cgDisplayEntry ? cgDisplayEntry.name : (CHORD_NAMES[cgCurrentChord] || cgCurrentChord);
+    const harmonicNotation = cgDisplayEntry ? cgDisplayEntry.chordKey : cgCurrentChord;
+
+    nameEl.textContent = traditionalName;
+    notationEl.textContent = harmonicNotation;
+
+    const intervalsHTML = cgCurrentExpectedIntervals.map(int =>
+        `<span class="chord-interval" data-interval="${int.num}/${int.denom}">${int.num}/${int.denom}</span>`
+    ).join(', ');
+    intervalsEl.innerHTML = intervalsHTML;
+
+    // Starting position
+    const posLabel = cgDisplayEntry ? cgDisplayEntry.positionLabel : '';
+    if (posLabel) {
+        startPosEl.innerHTML = `Starting <strong>${posLabel}</strong>`;
+    } else {
+        startPosEl.innerHTML = '';
+    }
+}
+
+// Place target at random position (not on player)
+function placeChordGridTarget() {
+    chordGridTargetStartTime = Date.now();
+    let newRow, newCol;
+    do {
+        newRow = Math.floor(Math.random() * chordGridSize);
+        newCol = Math.floor(Math.random() * chordGridSize);
+    } while (newRow === chordGridPlayerRow && newCol === chordGridPlayerCol);
+    chordGridTargetRow = newRow;
+    chordGridTargetCol = newCol;
+}
+
+// Move player in chord-grid mode
+function moveChordGridPlayer(dRow, dCol) {
+    if (!chordGridGameActive || chordGridPhase !== 'grid') return;
+
+    const newRow = chordGridPlayerRow + dRow;
+    const newCol = chordGridPlayerCol + dCol;
+
+    if (newRow >= 0 && newRow < chordGridSize && newCol >= 0 && newCol < chordGridSize) {
+        chordGridPlayerRow = newRow;
+        chordGridPlayerCol = newCol;
+        renderChordGrid();
+    }
+}
+
+// Capture target in chord-grid mode
+function captureChordGridTarget() {
+    if (!chordGridGameActive || chordGridPhase !== 'grid') return;
+
+    if (chordGridPlayerRow === chordGridTargetRow && chordGridPlayerCol === chordGridTargetCol) {
+        // Transition to chord phase
+        setChordGridPhase('chord');
+    }
+}
+
+// Set phase (grid or chord)
+function setChordGridPhase(phase) {
+    chordGridPhase = phase;
+
+    const phaseIndicator = document.getElementById('chord-grid-phase-indicator');
+    const gridContainer = document.getElementById('chord-grid-container');
+    const pianoRoll = document.getElementById('chord-grid-piano-roll');
+    const keyboardLegend = document.getElementById('chord-grid-keyboard-legend');
+    const compositionDisplay = document.getElementById('chord-grid-composition-display');
+    const controlsInfo = document.getElementById('chord-grid-controls-info');
+    const chordLabel = document.querySelector('.chord-grid-chord-label');
+
+    if (phase === 'grid') {
+        if (phaseIndicator) {
+            phaseIndicator.className = 'chord-grid-phase-indicator grid-phase';
+            phaseIndicator.textContent = 'Grid Phase - Navigate to target';
+        }
+        if (gridContainer) gridContainer.classList.remove('chord-phase-dimmed');
+        if (pianoRoll) pianoRoll.style.display = 'flex';
+        if (keyboardLegend) keyboardLegend.style.display = 'none';
+        if (compositionDisplay) compositionDisplay.style.display = 'none';
+        if (controlsInfo) controlsInfo.style.display = 'block';
+        if (chordLabel) chordLabel.textContent = 'Upcoming Chord:';
+
+        // Render piano roll as static preview (no arrow, all grey)
+        renderChordGridPianoRollPreview();
+    } else {
+        if (phaseIndicator) {
+            phaseIndicator.className = 'chord-grid-phase-indicator chord-phase';
+            phaseIndicator.textContent = 'Chord Phase - Build the chord!';
+        }
+        if (gridContainer) gridContainer.classList.add('chord-phase-dimmed');
+        if (pianoRoll) pianoRoll.style.display = 'flex';
+        if (keyboardLegend) keyboardLegend.style.display = 'block';
+        if (compositionDisplay) compositionDisplay.style.display = 'flex';
+        if (controlsInfo) controlsInfo.style.display = 'none';
+        if (chordLabel) chordLabel.textContent = 'Build this chord:';
+
+        // Reset chord state for building (auto-place 1/1)
+        cgChordProgress = [{ num: 1, denom: 1 }];
+        cgCurrentComposition = [{ num: 1, denom: 1 }];
+        updateChordGridCompositionDisplay();
+        renderChordGridPianoRoll();
+        playSingleTone(1, 1);
+
+        // Reset interval highlights, then mark 1/1 as placed
+        const spans = document.querySelectorAll('#chord-grid-chord-intervals .chord-interval');
+        spans.forEach(span => {
+            span.style.color = '';
+            span.style.fontWeight = '';
+        });
+        // Mark 1/1 as already entered
+        spans.forEach(span => {
+            if (span.dataset.interval === '1/1') {
+                span.style.color = 'green';
+                span.style.fontWeight = 'bold';
+            }
+        });
+    }
+}
+
+// Handle keypress in chord-grid mode
+function handleChordGridKeyPress(event) {
+    if (!chordGridGameActive) return;
+
+    const key = event.key.toLowerCase();
+
+    if (chordGridPhase === 'grid') {
+        // Grid phase: ASDF movement + Tab capture
+        switch (key) {
+            case 'a':
+                event.preventDefault();
+                moveChordGridPlayer(0, -1);
+                break;
+            case 's':
+                event.preventDefault();
+                moveChordGridPlayer(-1, 0);
+                break;
+            case 'd':
+                event.preventDefault();
+                moveChordGridPlayer(1, 0);
+                break;
+            case 'f':
+                event.preventDefault();
+                moveChordGridPlayer(0, 1);
+                break;
+            case 'tab':
+                event.preventDefault();
+                captureChordGridTarget();
+                break;
+        }
+    } else {
+        // Chord phase: chord building keys
+        handleChordGridChordKeypress(event, key);
+    }
+}
+
+// Handle chord building keypress in chord-grid mode
+function handleChordGridChordKeypress(event, key) {
+    const feedbackEl = document.getElementById('chord-grid-feedback');
+
+    // Backspace - reset chord (keep 1/1 auto-placed)
+    if (key === 'backspace') {
+        event.preventDefault();
+        cgCurrentComposition = [{ num: 1, denom: 1 }];
+        cgChordProgress = [{ num: 1, denom: 1 }];
+        updateChordGridCompositionDisplay();
+        renderChordGridPianoRoll();
+
+        // Reset interval highlights, then mark 1/1 as placed
+        const spans = document.querySelectorAll('#chord-grid-chord-intervals .chord-interval');
+        spans.forEach(span => {
+            span.style.color = '';
+            span.style.fontWeight = '';
+        });
+        spans.forEach(span => {
+            if (span.dataset.interval === '1/1') {
+                span.style.color = 'green';
+                span.style.fontWeight = 'bold';
+            }
+        });
+
+        if (feedbackEl) {
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'feedback';
+            feedbackEl.style.background = '';
+            feedbackEl.style.color = '';
+        }
+        return;
+    }
+
+    // Submit key - check interval
+    if (key === submitKey.toLowerCase()) {
+        event.preventDefault();
+
+        const product = multiplyFractions(cgCurrentComposition);
+        const intervalKey = `${product.num}/${product.denom}`;
+
+        const expectedSet = new Set(cgCurrentExpectedIntervals.map(i => `${i.num}/${i.denom}`));
+        const alreadyEnteredSet = new Set(cgChordProgress.map(i => `${i.num}/${i.denom}`));
+
+        if (expectedSet.has(intervalKey) && !alreadyEnteredSet.has(intervalKey)) {
+            // Correct interval
+            cgChordProgress.push(product);
+
+            // Mark interval correct (green + wiggle)
+            const spans = document.querySelectorAll('#chord-grid-chord-intervals .chord-interval');
+            spans.forEach(span => {
+                if (span.dataset.interval === intervalKey) {
+                    span.style.color = 'green';
+                    span.style.fontWeight = 'bold';
+                    span.classList.add('wiggle');
+                    setTimeout(() => span.classList.remove('wiggle'), 600);
+                }
+            });
+
+            // Play single tone
+            playSingleTone(product.num, product.denom);
+
+            // Reset composition for next interval
+            cgCurrentComposition = [{ num: 1, denom: 1 }];
+            updateChordGridCompositionDisplay();
+            renderChordGridPianoRoll();
+
+            // Check if chord is complete
+            if (cgChordProgress.length === cgCurrentExpectedIntervals.length) {
+                // Chord complete!
+                const targetTime = (Date.now() - chordGridTargetStartTime) / 1000;
+                chordGridTotalTime += targetTime;
+                chordGridScore++;
+                updateChordGridStats();
+
+                // Record stats for adaptive progression (skip during drill phase — drill times shouldn't count toward mastery)
+                const cgIsDrilling = cgCurrentNewChord && cgCurrentChord === cgCurrentNewChord && cgNewChordDrillCount < cgNewChordDrillTarget;
+                if (!cgIsDrilling && cgChordStats[cgCurrentChord]) {
+                    cgChordStats[cgCurrentChord].attempts++;
+                    cgChordStats[cgCurrentChord].totalTime += targetTime;
+                    cgChordStats[cgCurrentChord].recentTimes.push(targetTime);
+                    // Keep recent times bounded
+                    if (cgChordStats[cgCurrentChord].recentTimes.length > 20) {
+                        cgChordStats[cgCurrentChord].recentTimes = cgChordStats[cgCurrentChord].recentTimes.slice(-20);
+                    }
+                }
+
+                // Handle drill counting for new chord
+                if (cgCurrentNewChord && cgCurrentChord === cgCurrentNewChord) {
+                    cgNewChordDrillCount++;
+
+                    if (cgNewChordDrillCount >= cgNewChordDrillTarget) {
+                        // Add to active chords
+                        const chordToAdd = allChordsSorted.find(c => c.key === cgCurrentNewChord);
+                        if (chordToAdd && !cgActiveChords.find(c => c.key === chordToAdd.key)) {
+                            cgActiveChords.push(chordToAdd);
+                            if (!cgChordStats[chordToAdd.key]) {
+                                cgChordStats[chordToAdd.key] = {
+                                    attempts: 0, totalTime: 0, recentTimes: [],
+                                    mastered: false, lastSeenQuestion: -1, chord: chordToAdd
+                                };
+                            }
+                        }
+                        cgCurrentNewChord = null;
+                        cgNewChordDrillCount = 0;
+                        cgAdaptiveLevel = countBaseChords(cgActiveChords);
+                        updateCGLevelDisplay();
+                        saveCGAdaptiveProgress();
+                    }
+                }
+
+                // Handle tutorial progression
+                if (cgTutorialActive) {
+                    cgTutorialIndex++;
+                }
+
+                // Check mastery and unlock next chord
+                checkAndUnlockNextCGChord();
+
+                // Update progress display
+                updateCGGameProgress();
+
+                // Show feedback
+                let drillMsg = '';
+                if (cgCurrentNewChord && cgCurrentChord === cgCurrentNewChord) {
+                    drillMsg = ` | Drill: ${cgNewChordDrillCount}/${cgNewChordDrillTarget}`;
+                }
+
+                setTimeout(() => {
+                    if (feedbackEl) {
+                        feedbackEl.textContent = `Correct! (${targetTime.toFixed(2)}s)${drillMsg}`;
+                        feedbackEl.className = 'feedback correct';
+                    }
+                    // Play chord audio
+                    playChordAudio(cgCurrentExpectedIntervals);
+                }, 300);
+
+                // After delay, transition back to grid phase with new chord + target
+                setTimeout(() => {
+                    if (!chordGridGameActive) return;
+
+                    if (feedbackEl) {
+                        feedbackEl.textContent = '';
+                        feedbackEl.className = 'feedback';
+                        feedbackEl.style.background = '';
+                        feedbackEl.style.color = '';
+                    }
+
+                    // Select next chord and place new target
+                    selectNextChordGridChord();
+                    placeChordGridTarget();
+
+                    // Switch back to grid phase
+                    setChordGridPhase('grid');
+                    renderChordGrid();
+
+                    // Focus grid
+                    const container = document.getElementById('chord-grid-container');
+                    if (container) container.focus();
+                }, 1300);
+            }
+        } else {
+            // Wrong interval - reset chord progress (keep 1/1 auto-placed)
+            playSingleTone(product.num, product.denom);
+
+            cgCurrentComposition = [{ num: 1, denom: 1 }];
+            cgChordProgress = [{ num: 1, denom: 1 }];
+            updateChordGridCompositionDisplay();
+            renderChordGridPianoRoll();
+
+            // Reset drill count on wrong answer
+            if (cgCurrentNewChord && cgCurrentChord === cgCurrentNewChord) {
+                cgNewChordDrillCount = 0;
+            }
+
+            // Reset interval highlights, then mark 1/1 as placed
+            const spans = document.querySelectorAll('#chord-grid-chord-intervals .chord-interval');
+            spans.forEach(span => {
+                span.style.color = '';
+                span.style.fontWeight = '';
+            });
+            spans.forEach(span => {
+                if (span.dataset.interval === '1/1') {
+                    span.style.color = 'green';
+                    span.style.fontWeight = 'bold';
+                }
+            });
+
+            if (feedbackEl) {
+                feedbackEl.textContent = `Wrong interval! Expected one of: ${[...expectedSet].filter(i => !alreadyEnteredSet.has(i)).join(', ')}`;
+                feedbackEl.className = 'feedback incorrect';
+                feedbackEl.style.background = '#f8d7da';
+                feedbackEl.style.color = '#721c24';
+            }
+
+            setTimeout(() => {
+                if (feedbackEl) {
+                    feedbackEl.textContent = '';
+                    feedbackEl.className = 'feedback';
+                    feedbackEl.style.background = '';
+                    feedbackEl.style.color = '';
+                }
+            }, 2000);
+        }
+        return;
+    }
+
+    // Add to composition
+    if (allMappings[key]) {
+        event.preventDefault();
+        cgCurrentComposition.push(allMappings[key]);
+        updateChordGridCompositionDisplay();
+        renderChordGridPianoRoll();
+    }
+}
+
+// Render the chord-grid game grid
+function renderChordGrid() {
+    const container = document.getElementById('chord-grid-container');
+    if (!container) return;
+    container.innerHTML = '';
+    container.tabIndex = 0;
+
+    for (let row = 0; row < chordGridSize; row++) {
+        for (let col = 0; col < chordGridSize; col++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+
+            if (row === chordGridPlayerRow && col === chordGridPlayerCol) {
+                cell.classList.add('player-cell');
+                cell.textContent = '◆';
+            } else if (row === chordGridTargetRow && col === chordGridTargetCol) {
+                cell.classList.add('target-cell');
+                cell.textContent = '●';
+            }
+
+            container.appendChild(cell);
+        }
+    }
+
+    container.style.gridTemplateColumns = `repeat(${chordGridSize}, 1fr)`;
+}
+
+// Render piano roll for chord-grid mode
+function renderChordGridPianoRoll() {
+    const container = document.getElementById('chord-grid-piano-roll');
+    if (!container || !cgCurrentChord) return;
+
+    const intervals = cgCurrentExpectedIntervals;
+    if (!intervals || intervals.length === 0) return;
+
+    // Calculate positions
+    const positions = intervals.map(interval => Math.log2(interval.num / interval.denom));
+    const minPos = Math.min(...positions);
+    const maxPos = Math.max(...positions);
+    const padding = 0.25;
+    const paddedMin = minPos - padding;
+    const paddedMax = maxPos + padding;
+    const totalRange = paddedMax - paddedMin;
+
+    const pixelsPerOctave = 100;
+    const height = totalRange * pixelsPerOctave;
+    const arrowWidth = 25;
+    const noteWidth = 80;
+    const barHeight = 10;
+    const width = arrowWidth + noteWidth + 5;
+
+    let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+
+    const enteredSet = new Set(cgChordProgress.map(i => `${i.num}/${i.denom}`));
+
+    intervals.forEach((interval, index) => {
+        const pos = positions[index];
+        const normalizedPos = (pos - paddedMin) / totalRange;
+        const y = height - (normalizedPos * height) - barHeight / 2;
+        const isEntered = enteredSet.has(`${interval.num}/${interval.denom}`);
+        const color = isEntered ? '#4caf50' : '#999';
+
+        svg += `<rect x="${arrowWidth}" y="${y}" width="${noteWidth}" height="${barHeight}"
+                fill="${color}" stroke="#000" stroke-width="1" rx="2"/>`;
+    });
+
+    // Arrow for current composition
+    const currentValue = multiplyFractions(cgCurrentComposition);
+    if (currentValue) {
+        const currentRatio = currentValue.num / currentValue.denom;
+        const currentPos = Math.log2(currentRatio);
+        const normalizedPos = (currentPos - paddedMin) / totalRange;
+        const arrowY = height - (normalizedPos * height);
+
+        svg += `<path d="M ${arrowWidth - 5} ${arrowY} L 5 ${arrowY - 6} L 5 ${arrowY + 6} Z"
+                fill="#4caf50" class="root-arrow"/>`;
+    }
+
+    svg += '</svg>';
+    container.innerHTML = svg;
+}
+
+// Render piano roll as a static preview (grid phase - no arrow, all bars grey)
+function renderChordGridPianoRollPreview() {
+    const container = document.getElementById('chord-grid-piano-roll');
+    if (!container || !cgCurrentChord) return;
+
+    const intervals = cgCurrentExpectedIntervals;
+    if (!intervals || intervals.length === 0) return;
+
+    const positions = intervals.map(interval => Math.log2(interval.num / interval.denom));
+    const minPos = Math.min(...positions);
+    const maxPos = Math.max(...positions);
+    const padding = 0.25;
+    const paddedMin = minPos - padding;
+    const paddedMax = maxPos + padding;
+    const totalRange = paddedMax - paddedMin;
+
+    const pixelsPerOctave = 100;
+    const height = totalRange * pixelsPerOctave;
+    const arrowWidth = 25;
+    const noteWidth = 80;
+    const barHeight = 10;
+    const width = arrowWidth + noteWidth + 5;
+
+    let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+
+    intervals.forEach((interval, index) => {
+        const pos = positions[index];
+        const normalizedPos = (pos - paddedMin) / totalRange;
+        const y = height - (normalizedPos * height) - barHeight / 2;
+
+        svg += `<rect x="${arrowWidth}" y="${y}" width="${noteWidth}" height="${barHeight}"
+                fill="#999" stroke="#000" stroke-width="1" rx="2"/>`;
+    });
+
+    // Arrow pointing at 1/1 (the starting note)
+    const startPos = Math.log2(1); // 0
+    const normalizedStart = (startPos - paddedMin) / totalRange;
+    const arrowY = height - (normalizedStart * height);
+
+    svg += `<path d="M ${arrowWidth - 5} ${arrowY} L 5 ${arrowY - 6} L 5 ${arrowY + 6} Z"
+            fill="#4caf50" class="root-arrow"/>`;
+
+    svg += '</svg>';
+    container.innerHTML = svg;
+}
+
+// Update composition display for chord-grid mode
+function updateChordGridCompositionDisplay() {
+    const el = document.getElementById('chord-grid-composition');
+    if (!el) return;
+
+    if (cgCurrentComposition.length === 0 || (cgCurrentComposition.length === 1 && cgCurrentComposition[0].num === 1 && cgCurrentComposition[0].denom === 1)) {
+        el.textContent = 'Press keys to build interval...';
+        el.style.color = '#999';
+        return;
+    }
+
+    const product = multiplyFractions(cgCurrentComposition);
+
+    if (cgCurrentComposition.length === 1) {
+        el.innerHTML = `<strong>${product.num}/${product.denom}</strong>`;
+    } else {
+        const parts = cgCurrentComposition.map(c => `${c.num}/${c.denom}`).join(' × ');
+        el.innerHTML = `${parts} = <strong>${product.num}/${product.denom}</strong>`;
+    }
+    el.style.color = '#333';
+}
+
+// Update chord-grid timer
+function updateChordGridTimer() {
+    if (!chordGridGameActive || !chordGridStartTime) return;
+
+    const elapsed = (Date.now() - chordGridStartTime) / 1000;
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = Math.floor(elapsed % 60);
+    const centiseconds = Math.floor((elapsed % 1) * 100);
+
+    const timerEl = document.getElementById('chord-grid-timer');
+    if (timerEl) {
+        timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+    }
+}
+
+// Update chord-grid stats
+function updateChordGridStats() {
+    const scoreEl = document.getElementById('chord-grid-score');
+    const avgEl = document.getElementById('chord-grid-avg-time');
+
+    if (scoreEl) scoreEl.textContent = chordGridScore;
+    if (avgEl) {
+        avgEl.textContent = chordGridScore > 0
+            ? (chordGridTotalTime / chordGridScore).toFixed(2) + 's'
+            : '0.00s';
+    }
+}
+
+// Render keyboard legend for chord-grid mode
+function renderChordGridKeyboardLegend() {
+    const legendGrid = document.getElementById('chord-grid-legend-grid');
+    if (!legendGrid) return;
+
+    legendGrid.innerHTML = '';
+
+    const primeKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    const reciprocalKeys = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
+
+    for (const key of primeKeys) {
+        if (primeMappings[key]) {
+            const ratio = primeMappings[key];
+            const div = document.createElement('div');
+            div.className = 'legend-item';
+            div.innerHTML = `<span class="legend-key">${key}</span><span class="legend-ratio">${ratio.num}/${ratio.denom}</span>`;
+            legendGrid.appendChild(div);
+        }
+    }
+
+    for (const key of reciprocalKeys) {
+        if (reciprocalMappings[key]) {
+            const ratio = reciprocalMappings[key];
+            const div = document.createElement('div');
+            div.className = 'legend-item';
+            div.innerHTML = `<span class="legend-key">${key.toUpperCase()}</span><span class="legend-ratio">${ratio.num}/${ratio.denom}</span>`;
+            legendGrid.appendChild(div);
+        }
+    }
+}

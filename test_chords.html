@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chord Inversion Test</title>
+</head>
+<body>
+    <h1>Chord Inversion Test</h1>
+    <pre id="output"></pre>
+
+    <script src="data/chordTypes.js"></script>
+    <script>
+        const output = document.getElementById('output');
+        let result = '';
+
+        result += 'BASE_CHORD_TYPES count: ' + Object.keys(BASE_CHORD_TYPES).length + '\n';
+        result += 'CHORD_TYPES count: ' + Object.keys(CHORD_TYPES).length + '\n\n';
+
+        result += 'All CHORD_TYPES keys:\n';
+        Object.keys(CHORD_TYPES).sort().forEach(k => {
+            result += '  ' + k + '\n';
+        });
+
+        result += '\n\nSample inversion check:\n';
+        result += '  4:5:6 (Major): ' + (CHORD_TYPES['4:5:6'] ? 'EXISTS' : 'MISSING') + '\n';
+        result += '  5:6:8 (Major 1st inv): ' + (CHORD_TYPES['5:6:8'] ? 'EXISTS' : 'MISSING') + '\n';
+        result += '  6:8:10 (Major 2nd inv): ' + (CHORD_TYPES['6:8:10'] ? 'EXISTS' : 'MISSING') + '\n';
+
+        output.textContent = result;
+    </script>
+</body>
+</html>

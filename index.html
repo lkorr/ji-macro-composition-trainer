@@ -26,6 +26,9 @@
                 <button id="select-grid-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
                     🎯 Grid Movement Training
                 </button>
+                <button id="select-chord-grid-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
+                    🎯🎵 Chords + Grid Movement
+                </button>
             </div>
         </div>
 
@@ -62,13 +65,26 @@
                         <input type="number" id="chord-non-mastered-rate-input" min="10" max="90" step="5" value="80" class="small-number-input">%
                     </label>
                 </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="include-inversions-checkbox" checked>
+                        Include Inversions
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="random-starting-note-checkbox">
+                        Random Starting Note (build chords from any position)
+                    </label>
+                </div>
             </div>
 
             <div class="adaptive-progress">
-                <div class="adaptive-level-display">
-                    <h3>Current Level: <span id="adaptive-chord-level-number">1</span></h3>
-                    <p class="level-description">Unlock new chords (including inversions) by mastering current ones!</p>
+                <div class="adaptive-level-display" id="adaptive-chord-level-display" style="cursor: pointer;">
+                    <h3>Current Level: <span id="adaptive-chord-level-number">1</span> <span id="adaptive-chord-level-arrow" class="level-toggle-arrow">&#9654;</span></h3>
+                    <p class="level-description">Unlock new chords by mastering current ones! Click to see details.</p>
                 </div>
+                <div id="adaptive-chord-level-detail" class="level-detail-panel" style="display:none;"></div>
                 <h3>Progress</h3>
                 <div id="adaptive-chord-stats" class="adaptive-stats">
                     <p>Click "Start/Continue" to begin!</p>
@@ -77,11 +93,11 @@
 
             <div class="adaptive-resume-section">
                 <h3>Resume from Specific Level</h3>
-                <p class="resume-description">If your progress was lost, enter the number of chords you had unlocked:</p>
+                <p class="resume-description">If your progress was lost, enter the number of base chords you had unlocked (all variants of each base chord will be included):</p>
                 <div class="resume-input-group">
                     <label>
-                        Number of Chords:
-                        <input type="number" id="chord-resume-level-input" min="1" max="50" value="1" class="small-number-input">
+                        Number of Base Chords:
+                        <input type="number" id="chord-resume-level-input" min="1" max="15" value="1" class="small-number-input">
                     </label>
                     <button id="chord-resume-level-btn" class="btn-secondary">Resume Progress</button>
                 </div>
@@ -109,7 +125,7 @@
                 <div class="setting-row">
                     <label>
                         Mastery Time Threshold:
-                        <input type="number" id="mastery-threshold-input" min="0.5" max="10" step="0.5" value="2.5" class="small-number-input"> seconds
+                        <input type="number" id="mastery-threshold-input" min="0.5" max="10" step="0.5" value="3.5" class="small-number-input"> seconds
                     </label>
                 </div>
                 <div class="setting-row">
@@ -127,7 +143,7 @@
                 <div class="setting-row">
                     <label>
                         Rolling Average Window:
-                        <input type="number" id="rolling-average-window-input" min="3" max="20" value="10" class="small-number-input"> recent attempts
+                        <input type="number" id="rolling-average-window-input" min="3" max="20" value="3" class="small-number-input"> recent attempts
                     </label>
                 </div>
                 <div class="setting-row">
@@ -364,17 +380,174 @@
             </div>
         </div>
 
+        <!-- Chord + Grid Mode Settings Panel -->
+        <div id="chord-grid-mode-panel" class="panel" style="display: none;">
+            <div class="panel-header">
+                <h2>Adaptive Chords + Grid Movement</h2>
+                <button id="back-to-main-from-chord-grid-btn" class="btn-secondary">← Back to Main Menu</button>
+            </div>
+
+            <div class="adaptive-settings">
+                <h3>Settings</h3>
+                <div class="setting-row">
+                    <label>
+                        Grid Size:
+                        <input type="number" id="chord-grid-size-input" min="5" max="20" value="10" class="small-number-input"> × <span id="chord-grid-size-display">10</span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Mastery Time Threshold:
+                        <input type="number" id="cg-mastery-threshold-input" min="0.5" max="30" step="0.5" value="10" class="small-number-input"> seconds
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Minimum Attempts Before Mastery:
+                        <input type="number" id="cg-min-attempts-input" min="3" max="20" value="5" class="small-number-input"> attempts
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Rolling Average Window:
+                        <input type="number" id="cg-rolling-average-window-input" min="3" max="20" value="3" class="small-number-input"> recent attempts
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        Non-Mastered Question Rate:
+                        <input type="number" id="cg-non-mastered-rate-input" min="10" max="90" step="5" value="80" class="small-number-input">%
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="chord-grid-include-inversions-checkbox" checked>
+                        Include Inversions
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="chord-grid-random-start-checkbox">
+                        Random Starting Note (build chords from any position)
+                    </label>
+                </div>
+            </div>
+
+            <div class="adaptive-progress">
+                <div class="adaptive-level-display" id="cg-level-display" style="cursor: pointer;">
+                    <h3>Current Level: <span id="cg-level-number">1</span> <span id="cg-level-arrow" class="level-toggle-arrow">&#9654;</span></h3>
+                    <p class="level-description">Unlock new chords by mastering current ones! Click to see details.</p>
+                </div>
+                <div id="cg-level-detail" class="level-detail-panel" style="display:none;"></div>
+                <h3>Progress</h3>
+                <div id="cg-stats" class="adaptive-stats">
+                    <p>Click "Start / Continue" to begin!</p>
+                </div>
+            </div>
+
+            <div class="adaptive-resume-section">
+                <h3>Resume from Specific Level</h3>
+                <p class="resume-description">If your progress was lost, enter the number of base chords you had unlocked (all variants of each base chord will be included):</p>
+                <div class="resume-input-group">
+                    <label>
+                        Number of Base Chords:
+                        <input type="number" id="cg-resume-level-input" min="1" max="15" value="1" class="small-number-input">
+                    </label>
+                    <button id="cg-resume-level-btn" class="btn-secondary">Resume Progress</button>
+                </div>
+            </div>
+
+            <div class="adaptive-actions">
+                <button id="start-chord-grid-btn" class="btn-primary large-btn">Start / Continue</button>
+                <button id="reset-chord-grid-btn" class="btn-secondary">Reset Progress</button>
+            </div>
+        </div>
+
+        <!-- Chord + Grid Gameplay Panel -->
+        <div id="chord-grid-game-panel" class="panel" style="display: none;">
+            <div class="game-panel-header">
+                <div id="chord-grid-phase-indicator" class="chord-grid-phase-indicator grid-phase">
+                    Grid Phase - Navigate to target
+                </div>
+                <div id="cg-level-indicator" class="adaptive-level-indicator" style="display: flex; cursor: pointer;">
+                    Level <span id="cg-game-level-number">1</span> <span id="cg-game-level-arrow" class="level-toggle-arrow">&#9654;</span>
+                </div>
+                <div class="header-buttons">
+                    <button id="end-chord-grid-btn" class="btn-secondary">End Game</button>
+                </div>
+            </div>
+            <div id="cg-game-level-detail" class="level-detail-panel" style="display:none;"></div>
+
+            <div class="score-display">
+                <div class="score-item">
+                    <span class="score-label">Timer:</span>
+                    <span id="chord-grid-timer">0:00.00</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Targets Captured:</span>
+                    <span id="chord-grid-score">0</span>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">Avg Time:</span>
+                    <span id="chord-grid-avg-time">0.00s</span>
+                </div>
+            </div>
+
+            <!-- Chord display (upcoming during grid phase, active during chord phase) -->
+            <div id="chord-grid-chord-display" class="chord-grid-chord-display">
+                <div class="chord-grid-chord-label">Upcoming Chord:</div>
+                <div id="chord-grid-chord-name" class="chord-grid-chord-name"></div>
+                <div id="chord-grid-starting-position" class="starting-position"></div>
+                <div id="chord-grid-chord-notation" class="chord-harmonic-notation"></div>
+                <div id="chord-grid-chord-intervals" class="chord-intervals"></div>
+                <!-- Piano Roll (inline with chord info) -->
+                <div id="chord-grid-piano-roll" class="piano-roll-container" style="display: none;"></div>
+            </div>
+
+            <!-- Grid -->
+            <div id="chord-grid-container" class="grid-container"></div>
+
+            <!-- Composition Display (hidden during grid phase) -->
+            <div id="chord-grid-composition-display" class="composition-display" style="display: none;">
+                <div id="chord-grid-composition" class="composition-value">Press keys to build interval...</div>
+            </div>
+
+            <!-- Feedback -->
+            <div id="chord-grid-feedback" class="feedback"></div>
+
+            <!-- Chord Progress (Chord-Grid Mode) -->
+            <div id="cg-game-interval-progress" class="game-interval-progress" style="display: none;">
+                <h3>Chord Progress</h3>
+                <div id="cg-game-progress-stats" class="game-progress-stats"></div>
+            </div>
+
+            <!-- Grid controls info -->
+            <div id="chord-grid-controls-info" class="grid-controls-info">
+                <h3>Controls</h3>
+                <p><strong>a</strong> = left, <strong>s</strong> = up, <strong>d</strong> = down, <strong>f</strong> = right</p>
+                <p><strong>Tab</strong> = capture target</p>
+                <p>Navigate to the <strong style="color: #e74c3c;">●</strong> target and press Tab to capture it!</p>
+            </div>
+
+            <!-- Keyboard Legend (hidden during grid phase) -->
+            <div id="chord-grid-keyboard-legend" class="keyboard-legend" style="display: none;">
+                <h3>Keyboard Reference</h3>
+                <div class="legend-grid" id="chord-grid-legend-grid"></div>
+            </div>
+        </div>
+
         <!-- Game Panel -->
         <div id="game-panel" class="panel" style="display: none;">
             <div class="game-panel-header">
-                <div id="adaptive-level-indicator" class="adaptive-level-indicator" style="display: none;">
-                    Level <span id="game-level-number">1</span>
+                <div id="adaptive-level-indicator" class="adaptive-level-indicator" style="display: none; cursor: pointer;">
+                    Level <span id="game-level-number">1</span> <span id="game-level-arrow" class="level-toggle-arrow">&#9654;</span>
                 </div>
                 <div class="header-buttons">
                     <button id="settings-btn" class="btn-secondary">⚙️ Settings</button>
                     <button id="help-btn-game" class="help-btn" title="Help">?</button>
                 </div>
             </div>
+            <div id="game-level-detail" class="level-detail-panel" style="display:none;"></div>
 
             <div class="score-display">
                 <div class="score-item">
@@ -429,6 +602,12 @@
         </div>
     </div>
 
+    <!-- Data files -->
+    <script src="data/intervalNames.js"></script>
+    <script src="data/chordTypes.js"></script>
+    <script src="data/keyMappings.js"></script>
+
+    <!-- Main application script -->
     <script src="script.js"></script>
 </body>
 </html>

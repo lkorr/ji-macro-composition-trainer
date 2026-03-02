@@ -412,11 +412,34 @@ h3 {
     border-radius: 8px;
     border-left: 4px solid #667eea;
     font-size: 0.85em;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.game-stat-item:hover {
+    opacity: 0.85;
 }
 
 .game-stat-item.mastered {
     border-left-color: #10b981;
     background: #f0fdf4;
+}
+
+.game-stat-item.disabled {
+    opacity: 0.4;
+    border-left-color: #ccc;
+    background: #f0f0f0;
+}
+
+.game-stat-item.disabled .game-stat-interval,
+.game-stat-item.disabled .game-stat-info,
+.game-stat-item.disabled .game-stat-details {
+    color: #aaa;
+}
+
+.game-stat-item.disabled .game-stat-badge {
+    color: #aaa;
 }
 
 .game-stat-item.current {
@@ -712,7 +735,7 @@ h3 {
 }
 
 .chord-intervals {
-    font-size: 0.6em;
+    font-size: 0.8em;
     color: #666;
     margin-top: 10px;
 }
@@ -845,11 +868,33 @@ h3 {
     background: white;
     border-radius: 8px;
     border-left: 4px solid #667eea;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.stat-item:hover {
+    opacity: 0.85;
 }
 
 .stat-item.mastered {
     border-left-color: #10b981;
     background: #f0fdf4;
+}
+
+.stat-item.disabled {
+    opacity: 0.4;
+    border-left-color: #ccc;
+    background: #f0f0f0;
+}
+
+.stat-item.disabled .stat-interval,
+.stat-item.disabled .stat-info {
+    color: #aaa;
+}
+
+.stat-item.disabled .mastered-badge {
+    color: #aaa;
 }
 
 .stat-interval {
@@ -1022,9 +1067,22 @@ h3 {
     transition: color 0.3s ease, font-weight 0.3s ease;
 }
 
+/* Chord starting position styling */
+.starting-position {
+    font-size: 0.65em;
+    color: #667eea;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+.starting-position strong {
+    font-weight: 700;
+    color: #764ba2;
+}
+
 /* Chord harmonic notation styling */
 .chord-harmonic-notation {
-    font-size: 0.5em;
+    font-size: 0.7em;
     color: #999;
     margin-top: 5px;
     margin-bottom: 10px;
@@ -1130,5 +1188,165 @@ h3 {
     color: white;
     padding: 2px 8px;
     border-radius: 4px;
+}
+
+/* Chord + Grid Combined Mode */
+.chord-grid-phase-indicator {
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 1.1em;
+    transition: all 0.3s ease;
+}
+
+.chord-grid-phase-indicator.grid-phase {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+}
+
+.chord-grid-phase-indicator.chord-phase {
+    background: linear-gradient(135deg, #764ba2, #667eea);
+    color: white;
+    box-shadow: 0 2px 8px rgba(118, 75, 162, 0.3);
+}
+
+.chord-grid-chord-display {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    margin-bottom: 15px;
+}
+
+.chord-grid-chord-label {
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.chord-grid-chord-name {
+    font-size: 1.8em;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.grid-container.chord-phase-dimmed {
+    opacity: 0.3;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+/* Chord Group Styles */
+.chord-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.group-header {
+    position: relative;
+}
+
+.group-header .stat-item,
+.group-header .game-stat-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.group-header-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-weight: 700;
+    color: #333;
+}
+
+.chord-group-toggle {
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.75em;
+    color: #667eea;
+    width: 16px;
+    flex-shrink: 0;
+    padding: 2px 0;
+    line-height: 1.2em;
+    transition: color 0.2s ease;
+}
+
+.chord-group-toggle:hover {
+    color: #764ba2;
+}
+
+.chord-group-children {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-left: 20px;
+    margin-top: 6px;
+}
+
+.chord-group-children.collapsed {
+    display: none;
+}
+
+.child-stat-item {
+    font-size: 0.9em;
+    padding: 8px 10px;
+}
+
+.child-game-stat-item {
+    font-size: 0.8em;
+    padding: 6px 8px;
+}
+
+/* Level Detail Panel (clickable level display) */
+.level-toggle-arrow {
+    font-size: 0.6em;
+    margin-left: 6px;
+    display: inline-block;
+    transition: transform 0.3s;
+}
+
+.level-toggle-arrow.expanded {
+    transform: rotate(90deg);
+}
+
+.level-detail-panel {
+    background: #f0fdf4;
+    border: 2px solid rgba(16, 185, 129, 0.3);
+    border-radius: 0 0 12px 12px;
+    padding: 15px 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.base-chord-group {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 8px;
+    border-left: 4px solid #10b981;
+}
+
+.base-chord-name {
+    font-weight: 700;
+    color: #333;
+}
+
+.base-chord-variants {
+    font-size: 0.85em;
+    color: #666;
+    padding-left: 20px;
+}
+
+.base-chord-variants li {
+    margin: 2px 0;
 }
 
