@@ -2544,21 +2544,20 @@ function startAdaptiveChordGame() {
     nextAdaptiveChordQuestion();
 }
 
-// Select weighted random chord
-function selectWeightedRandomChord() {
-    // Filter out disabled chords
-    const enabledChords = activeChords.filter(c => !disabledChords.has(c.key));
+// Select weighted random chord from a pool
+// opts: { chords, disabledSet, statsObj, questionCounter, getMasteryThreshold, getNonMasteredRate, getRollingWindow }
+function selectWeightedRandomChordFrom(opts) {
+    const enabledChords = opts.chords.filter(c => !opts.disabledSet.has(c.key));
     if (enabledChords.length === 0) return null;
 
     const n = enabledChords.length;
     const guaranteedWindow = 3 * n;
 
-    // Check for chords that MUST appear
     const mustAppearChords = [];
     for (const chord of enabledChords) {
-        const stats = chordStats[chord.key];
+        const stats = opts.statsObj[chord.key];
         if (stats) {
-            const questionsSinceLastSeen = globalChordQuestionCounter - stats.lastSeenQuestion;
+            const questionsSinceLastSeen = opts.questionCounter - stats.lastSeenQuestion;
             if (stats.lastSeenQuestion === -1 || questionsSinceLastSeen >= guaranteedWindow) {
                 mustAppearChords.push(chord);
             }
@@ -2566,49 +2565,38 @@ function selectWeightedRandomChord() {
     }
 
     if (mustAppearChords.length > 0) {
-        const randomIndex = Math.floor(Math.random() * mustAppearChords.length);
-        return mustAppearChords[randomIndex];
+        return mustAppearChords[Math.floor(Math.random() * mustAppearChords.length)];
     }
 
-    // Weighted random selection based on mastery
     const chordWeights = [];
     let totalWeight = 0;
-
-    // Get current settings
-    const currentMasteryThreshold = getCurrentMasteryThreshold();
-    const currentNonMasteredRate = getCurrentNonMasteredRate();
-    const currentWindow = getCurrentRollingAverageWindow();
+    const threshold = opts.getMasteryThreshold();
+    const nonMasteredRate = opts.getNonMasteredRate();
+    const window = opts.getRollingWindow();
 
     let masteredCount = 0;
     let nonMasteredCount = 0;
-
     for (const chord of enabledChords) {
-        const stats = chordStats[chord.key];
-        if (stats && stats.mastered) {
-            masteredCount++;
-        } else {
-            nonMasteredCount++;
-        }
+        const stats = opts.statsObj[chord.key];
+        if (stats && stats.mastered) masteredCount++;
+        else nonMasteredCount++;
     }
 
-    const masteredBaseWeight = nonMasteredCount > 0 ? (100 - currentNonMasteredRate) / masteredCount : 1;
-    const nonMasteredBaseWeight = nonMasteredCount > 0 ? currentNonMasteredRate / nonMasteredCount : 1;
+    const masteredBaseWeight = nonMasteredCount > 0 ? (100 - nonMasteredRate) / masteredCount : 1;
+    const nonMasteredBaseWeight = nonMasteredCount > 0 ? nonMasteredRate / nonMasteredCount : 1;
 
     for (const chord of enabledChords) {
-        const stats = chordStats[chord.key];
+        const stats = opts.statsObj[chord.key];
         let weight;
-
         if (stats && stats.mastered) {
             weight = masteredBaseWeight;
         } else if (stats && stats.recentTimes.length > 0) {
-            // Calculate average using only the most recent N attempts (rolling window)
-            const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
+            const recentTimesWindow = stats.recentTimes.slice(-window);
             const avgTime = recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length;
-            weight = nonMasteredBaseWeight * (1 + avgTime / currentMasteryThreshold);
+            weight = nonMasteredBaseWeight * (1 + avgTime / threshold);
         } else {
             weight = nonMasteredBaseWeight;
         }
-
         chordWeights.push({ chord, weight });
         totalWeight += weight;
     }
@@ -2616,12 +2604,21 @@ function selectWeightedRandomChord() {
     let random = Math.random() * totalWeight;
     for (const item of chordWeights) {
         random -= item.weight;
-        if (random <= 0) {
-            return item.chord;
-        }
+        if (random <= 0) return item.chord;
     }
-
     return chordWeights[chordWeights.length - 1].chord;
+}
+
+function selectWeightedRandomChord() {
+    return selectWeightedRandomChordFrom({
+        chords: activeChords,
+        disabledSet: disabledChords,
+        statsObj: chordStats,
+        questionCounter: globalChordQuestionCounter,
+        getMasteryThreshold: getCurrentMasteryThreshold,
+        getNonMasteredRate: getCurrentNonMasteredRate,
+        getRollingWindow: getCurrentRollingAverageWindow
+    });
 }
 
 // Next adaptive chord question
@@ -4138,75 +4135,16 @@ function updateCGGameProgress() {
     });
 }
 
-// Weighted random chord selection for chord-grid mode
 function selectWeightedRandomCGChord() {
-    // Filter out disabled chords
-    const enabledChords = cgActiveChords.filter(c => !cgDisabledChords.has(c.key));
-    if (enabledChords.length === 0) return null;
-
-    const n = enabledChords.length;
-    const guaranteedWindow = 3 * n;
-
-    // Check for chords that MUST appear
-    const mustAppearChords = [];
-    for (const chord of enabledChords) {
-        const stats = cgChordStats[chord.key];
-        if (stats) {
-            const questionsSinceLastSeen = cgGlobalQuestionCounter - stats.lastSeenQuestion;
-            if (stats.lastSeenQuestion === -1 || questionsSinceLastSeen >= guaranteedWindow) {
-                mustAppearChords.push(chord);
-            }
-        }
-    }
-
-    if (mustAppearChords.length > 0) {
-        return mustAppearChords[Math.floor(Math.random() * mustAppearChords.length)];
-    }
-
-    // Weighted random selection
-    const chordWeights = [];
-    let totalWeight = 0;
-    const currentThreshold = getCGMasteryThreshold();
-    const currentNonMasteredRate = getCGNonMasteredRate();
-    const currentWindow = getCGRollingWindow();
-
-    let masteredCount = 0;
-    let nonMasteredCount = 0;
-
-    for (const chord of enabledChords) {
-        const stats = cgChordStats[chord.key];
-        if (stats && stats.mastered) masteredCount++;
-        else nonMasteredCount++;
-    }
-
-    const masteredBaseWeight = nonMasteredCount > 0 ? (100 - currentNonMasteredRate) / masteredCount : 1;
-    const nonMasteredBaseWeight = nonMasteredCount > 0 ? currentNonMasteredRate / nonMasteredCount : 1;
-
-    for (const chord of enabledChords) {
-        const stats = cgChordStats[chord.key];
-        let weight;
-
-        if (stats && stats.mastered) {
-            weight = masteredBaseWeight;
-        } else if (stats && stats.recentTimes.length > 0) {
-            const recentTimesWindow = stats.recentTimes.slice(-currentWindow);
-            const avgTime = recentTimesWindow.reduce((a, b) => a + b, 0) / recentTimesWindow.length;
-            weight = nonMasteredBaseWeight * (1 + avgTime / currentThreshold);
-        } else {
-            weight = nonMasteredBaseWeight;
-        }
-
-        chordWeights.push({ chord, weight });
-        totalWeight += weight;
-    }
-
-    let random = Math.random() * totalWeight;
-    for (const item of chordWeights) {
-        random -= item.weight;
-        if (random <= 0) return item.chord;
-    }
-
-    return chordWeights[chordWeights.length - 1].chord;
+    return selectWeightedRandomChordFrom({
+        chords: cgActiveChords,
+        disabledSet: cgDisabledChords,
+        statsObj: cgChordStats,
+        questionCounter: cgGlobalQuestionCounter,
+        getMasteryThreshold: getCGMasteryThreshold,
+        getNonMasteredRate: getCGNonMasteredRate,
+        getRollingWindow: getCGRollingWindow
+    });
 }
 
 // Check and unlock next chord in chord-grid mode
