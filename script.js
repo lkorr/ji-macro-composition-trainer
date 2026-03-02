@@ -196,132 +196,53 @@ function initAudio() {
 }
 
 // Navigation functions
+const ALL_PANEL_IDS = [
+    'main-menu-panel', 'adaptive-mode-panel', 'adaptive-chord-mode-panel',
+    'grid-mode-panel', 'chord-grid-mode-panel', 'chord-grid-game-panel',
+    'mapping-panel', 'game-panel'
+];
+
+function showPanel(panelId) {
+    for (const id of ALL_PANEL_IDS) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = id === panelId ? 'block' : 'none';
+    }
+}
+
 function showMainMenu() {
-    const mainMenuPanel = document.getElementById('main-menu-panel');
-    if (mainMenuPanel) mainMenuPanel.style.display = 'block';
-    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
-    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
-    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
-    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
-    const gridModePanel = document.getElementById('grid-mode-panel');
-    if (gridModePanel) gridModePanel.style.display = 'none';
-    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
-    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
-    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
-    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
-    mappingPanel.style.display = 'none';
-    gamePanel.style.display = 'none';
+    showPanel('main-menu-panel');
 }
 
 function showAdaptiveMode() {
-    const mainMenuPanel = document.getElementById('main-menu-panel');
-    if (mainMenuPanel) mainMenuPanel.style.display = 'none';
-    mappingPanel.style.display = 'none';
-    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
-    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
-    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
-    if (adaptiveModePanel) adaptiveModePanel.style.display = 'block';
-    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
-    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
-    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
-    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
-    gamePanel.style.display = 'none';
+    showPanel('adaptive-mode-panel');
     updateAdaptiveStats();
 }
 
 function showAdaptiveChordMode() {
-    const mainMenuPanel = document.getElementById('main-menu-panel');
-    if (mainMenuPanel) mainMenuPanel.style.display = 'none';
-    mappingPanel.style.display = 'none';
-    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
-    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
-    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
-    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'block';
-    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
-    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
-    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
-    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
-    gamePanel.style.display = 'none';
+    showPanel('adaptive-chord-mode-panel');
     updateAdaptiveChordStats();
 }
 
 function showMappingConfig() {
-    mappingPanel.style.display = 'block';
-    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
-    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
-    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
-    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
-    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
-    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
-    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
-    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
-    gamePanel.style.display = 'none';
+    showPanel('mapping-panel');
     renderMappingConfig();
 }
 
 function showGridMode() {
-    const mainMenuPanel = document.getElementById('main-menu-panel');
-    if (mainMenuPanel) mainMenuPanel.style.display = 'none';
-    mappingPanel.style.display = 'none';
-    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
-    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
-    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
-    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
-    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
-    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
-    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
-    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
-    const gridModePanel = document.getElementById('grid-mode-panel');
-    if (gridModePanel) gridModePanel.style.display = 'block';
-    gamePanel.style.display = 'none';
+    showPanel('grid-mode-panel');
 }
 
 function showGame() {
-    mappingPanel.style.display = 'none';
-    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
-    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
-    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
-    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
-    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
-    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
-    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
-    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
-    gamePanel.style.display = 'block';
+    showPanel('game-panel');
 }
 
 function showChordGridMode() {
-    const mainMenuPanel = document.getElementById('main-menu-panel');
-    if (mainMenuPanel) mainMenuPanel.style.display = 'none';
-    mappingPanel.style.display = 'none';
-    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
-    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
-    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
-    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
-    const gridModePanel = document.getElementById('grid-mode-panel');
-    if (gridModePanel) gridModePanel.style.display = 'none';
-    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
-    if (chordGridModePanel) chordGridModePanel.style.display = 'block';
-    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
-    if (chordGridGamePanel) chordGridGamePanel.style.display = 'none';
-    gamePanel.style.display = 'none';
+    showPanel('chord-grid-mode-panel');
     updateCGStats();
 }
 
 function showChordGridGame() {
-    const mainMenuPanel = document.getElementById('main-menu-panel');
-    if (mainMenuPanel) mainMenuPanel.style.display = 'none';
-    mappingPanel.style.display = 'none';
-    const adaptiveModePanel = document.getElementById('adaptive-mode-panel');
-    if (adaptiveModePanel) adaptiveModePanel.style.display = 'none';
-    const adaptiveChordModePanel = document.getElementById('adaptive-chord-mode-panel');
-    if (adaptiveChordModePanel) adaptiveChordModePanel.style.display = 'none';
-    const gridModePanel = document.getElementById('grid-mode-panel');
-    if (gridModePanel) gridModePanel.style.display = 'none';
-    const chordGridModePanel = document.getElementById('chord-grid-mode-panel');
-    if (chordGridModePanel) chordGridModePanel.style.display = 'none';
-    const chordGridGamePanel = document.getElementById('chord-grid-game-panel');
-    if (chordGridGamePanel) chordGridGamePanel.style.display = 'block';
-    gamePanel.style.display = 'none';
+    showPanel('chord-grid-game-panel');
 }
 
 // Event listeners
