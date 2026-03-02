@@ -23,9 +23,6 @@
                 <button id="select-chord-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
                     🎵 Adaptive Chord Mode
                 </button>
-                <button id="select-grid-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
-                    🎯 Grid Movement Training
-                </button>
                 <button id="select-chord-grid-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
                     🎯🎵 Chords + Grid Movement
                 </button>
@@ -333,50 +330,42 @@
             </div>
         </div>
 
-        <!-- Grid Movement Game Panel -->
-        <div id="grid-mode-panel" class="panel" style="display: none;">
-            <div class="panel-header">
-                <h2>Grid Movement Training</h2>
-                <button id="back-to-main-from-grid-btn" class="btn-secondary">← Back to Main Menu</button>
-            </div>
+        <!-- Chord + Grid Hotkeys Configuration Panel -->
+        <div id="chord-grid-hotkeys-panel" class="panel" style="display: none;">
+            <h2>Chord + Grid Hotkey Configuration</h2>
+            <button id="back-to-chord-grid-from-hotkeys-btn" class="btn-secondary">← Back to Chord + Grid</button>
 
-            <div class="adaptive-settings">
-                <h3>Settings</h3>
-                <div class="setting-row">
-                    <label>
-                        Grid Size:
-                        <input type="number" id="grid-size-input" min="5" max="20" value="10" class="small-number-input"> × <span id="grid-size-display">10</span>
-                    </label>
+            <div class="settings-section">
+                <h3>Grid Movement Keys</h3>
+                <p>Assign keyboard keys for grid movement.</p>
+                <div class="mapping-grid">
+                    <div class="mapping-column">
+                        <div class="mapping-item">
+                            <label>Move Left: <input type="text" id="cg-move-left-input" maxlength="1" value="a" style="width: 50px; text-align: center; margin-left: 10px;"></label>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Move Up: <input type="text" id="cg-move-up-input" maxlength="1" value="s" style="width: 50px; text-align: center; margin-left: 10px;"></label>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Move Down: <input type="text" id="cg-move-down-input" maxlength="1" value="d" style="width: 50px; text-align: center; margin-left: 10px;"></label>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Move Right: <input type="text" id="cg-move-right-input" maxlength="1" value="f" style="width: 50px; text-align: center; margin-left: 10px;"></label>
+                        </div>
+                    </div>
+                    <div class="mapping-column">
+                        <div class="mapping-item">
+                            <label>Select / Capture Target:
+                                <input type="text" id="cg-capture-key-input" maxlength="10" value="Tab" style="width: 80px; text-align: center; margin-left: 10px;" placeholder="e.g. Tab, g">
+                            </label>
+                        </div>
+                        <p style="margin-top: 8px; font-size: 0.85em; color: #666;">Enter a single character (e.g. <code>g</code>) or <code>Tab</code> for the Tab key.</p>
+                    </div>
                 </div>
-            </div>
-
-            <div class="score-display">
-                <div class="score-item">
-                    <span class="score-label">Timer:</span>
-                    <span id="grid-timer">0:00.00</span>
+                <div class="mapping-actions">
+                    <button id="reset-cg-hotkeys-btn" class="btn-secondary">Reset to Defaults</button>
+                    <button id="save-cg-hotkeys-btn" class="btn-primary">Save & Continue</button>
                 </div>
-                <div class="score-item">
-                    <span class="score-label">Targets Hit:</span>
-                    <span id="grid-score">0</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Avg Time:</span>
-                    <span id="grid-avg-time">0.00s</span>
-                </div>
-            </div>
-
-            <div id="grid-container" class="grid-container"></div>
-
-            <div class="grid-controls-info">
-                <h3>Controls</h3>
-                <p><strong>a</strong> = left, <strong>s</strong> = up, <strong>d</strong> = down, <strong>f</strong> = right</p>
-                <p><strong>Tab</strong> = capture target</p>
-                <p>Navigate to the <strong style="color: #e74c3c;">●</strong> target and press Tab to capture it!</p>
-            </div>
-
-            <div class="adaptive-actions">
-                <button id="start-grid-btn" class="btn-primary large-btn">Start Game</button>
-                <button id="reset-grid-btn" class="btn-secondary">Reset</button>
             </div>
         </div>
 
@@ -384,7 +373,10 @@
         <div id="chord-grid-mode-panel" class="panel" style="display: none;">
             <div class="panel-header">
                 <h2>Adaptive Chords + Grid Movement</h2>
-                <button id="back-to-main-from-chord-grid-btn" class="btn-secondary">← Back to Main Menu</button>
+                <div class="header-buttons">
+                    <button id="back-to-main-from-chord-grid-btn" class="btn-secondary">← Back to Main Menu</button>
+                    <button id="cg-hotkeys-config-btn">Configure Hotkeys</button>
+                </div>
             </div>
 
             <div class="adaptive-settings">
@@ -524,9 +516,9 @@
             <!-- Grid controls info -->
             <div id="chord-grid-controls-info" class="grid-controls-info">
                 <h3>Controls</h3>
-                <p><strong>a</strong> = left, <strong>s</strong> = up, <strong>d</strong> = down, <strong>f</strong> = right</p>
-                <p><strong>Tab</strong> = capture target</p>
-                <p>Navigate to the <strong style="color: #e74c3c;">●</strong> target and press Tab to capture it!</p>
+                <p><strong id="cg-key-left">a</strong> = left, <strong id="cg-key-up">s</strong> = up, <strong id="cg-key-down">d</strong> = down, <strong id="cg-key-right">f</strong> = right</p>
+                <p><strong id="cg-key-capture">Tab</strong> = capture target</p>
+                <p>Navigate to the <strong style="color: #e74c3c;">●</strong> target and press <strong id="cg-key-capture2">Tab</strong> to capture it!</p>
             </div>
 
             <!-- Keyboard Legend (hidden during grid phase) -->
@@ -614,8 +606,7 @@
     <script src="js/ui.js"></script>
     <script src="js/game-intervals.js"></script>
     <script src="js/game-chords.js"></script>
-    <script src="js/game-grid.js"></script>
-    <script src="js/game-chord-grid.js"></script>
+<script src="js/game-chord-grid.js"></script>
     <script src="js/init.js"></script>
 </body>
 </html>

@@ -197,6 +197,7 @@ function startChordGridGame() {
     updateChordGridStats();
     updateCGGameProgress();
     renderChordGridKeyboardLegend();
+    updateChordGridControlsDisplay();
 
     // Focus grid
     const container = document.getElementById('chord-grid-container');
@@ -393,28 +394,22 @@ function handleChordGridKeyPress(event) {
     const key = event.key.toLowerCase();
 
     if (chordGridPhase === 'grid') {
-        // Grid phase: ASDF movement + Tab capture
-        switch (key) {
-            case 'a':
-                event.preventDefault();
-                moveChordGridPlayer(0, -1);
-                break;
-            case 's':
-                event.preventDefault();
-                moveChordGridPlayer(-1, 0);
-                break;
-            case 'd':
-                event.preventDefault();
-                moveChordGridPlayer(1, 0);
-                break;
-            case 'f':
-                event.preventDefault();
-                moveChordGridPlayer(0, 1);
-                break;
-            case 'tab':
-                event.preventDefault();
-                captureChordGridTarget();
-                break;
+        // Grid phase: configurable movement + capture key
+        if (key === cgMoveLeft) {
+            event.preventDefault();
+            moveChordGridPlayer(0, -1);
+        } else if (key === cgMoveUp) {
+            event.preventDefault();
+            moveChordGridPlayer(-1, 0);
+        } else if (key === cgMoveDown) {
+            event.preventDefault();
+            moveChordGridPlayer(1, 0);
+        } else if (key === cgMoveRight) {
+            event.preventDefault();
+            moveChordGridPlayer(0, 1);
+        } else if (key === cgCaptureKey) {
+            event.preventDefault();
+            captureChordGridTarget();
         }
     } else {
         // Chord phase: chord building keys
@@ -604,4 +599,15 @@ function updateChordGridStats() {
 
 function renderChordGridKeyboardLegend() {
     renderKeyboardLegendInto(document.getElementById('chord-grid-legend-grid'));
+}
+
+function updateChordGridControlsDisplay() {
+    const captureLabel = cgCaptureKey === 'tab' ? 'Tab' : cgCaptureKey.toUpperCase();
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('cg-key-left', cgMoveLeft);
+    set('cg-key-up', cgMoveUp);
+    set('cg-key-down', cgMoveDown);
+    set('cg-key-right', cgMoveRight);
+    set('cg-key-capture', captureLabel);
+    set('cg-key-capture2', captureLabel);
 }

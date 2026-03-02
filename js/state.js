@@ -76,19 +76,6 @@ let allMappings = {};
 // Audio context
 let audioContext = null;
 
-// Grid game state
-let gridGameActive = false;
-let gridSize = 10;
-let playerRow = 0;
-let playerCol = 0;
-let targetRow = 0;
-let targetCol = 0;
-let gridScore = 0;
-let gridStartTime = null;
-let gridTimerInterval = null;
-let gridTargetStartTime = null;
-let gridTotalTime = 0;
-
 // Chord-Grid game state
 let chordGridGameActive = false;
 let chordGridPhase = 'grid'; // 'grid' or 'chord'
@@ -125,3 +112,10 @@ let cgTutorialActive = true;
 let cgTutorialIndex = 0;
 let cgTutorialSequence = ['4:5:6'];
 let cgDisabledChords = new Set(); // Chord keys disabled by user (won't appear in questions)
+
+// Chord-Grid hotkeys (configurable)
+let cgMoveLeft = 'a';
+let cgMoveUp = 's';
+let cgMoveDown = 'd';
+let cgMoveRight = 'f';
+let cgCaptureKey = 'tab';

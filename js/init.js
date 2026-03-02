@@ -54,11 +54,6 @@ if (selectChordModeBtn) {
     selectChordModeBtn.addEventListener('click', showAdaptiveChordMode);
 }
 
-const selectGridModeBtn = document.getElementById('select-grid-mode-btn');
-if (selectGridModeBtn) {
-    selectGridModeBtn.addEventListener('click', showGridMode);
-}
-
 const selectChordGridModeBtn = document.getElementById('select-chord-grid-mode-btn');
 if (selectChordGridModeBtn) {
     selectChordGridModeBtn.addEventListener('click', showChordGridMode);
@@ -248,55 +243,12 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Grid / Chord-Grid keydown listener
+// Chord-Grid keydown listener
 document.addEventListener('keydown', (event) => {
-    // Chord+Grid combined mode takes priority
     if (chordGridGameActive) {
         handleChordGridKeyPress(event);
-        return;
-    }
-    if (gridGameActive) {
-        handleGridKeyPress(event);
     }
 });
-
-// Grid mode navigation
-const backToMainFromGridBtn = document.getElementById('back-to-main-from-grid-btn');
-if (backToMainFromGridBtn) {
-    backToMainFromGridBtn.addEventListener('click', () => {
-        if (gridGameActive) {
-            endGridGame();
-        }
-        showMainMenu();
-    });
-}
-
-const startGridBtn = document.getElementById('start-grid-btn');
-if (startGridBtn) {
-    startGridBtn.addEventListener('click', () => {
-        startGridGame();
-    });
-}
-
-const resetGridBtn = document.getElementById('reset-grid-btn');
-if (resetGridBtn) {
-    resetGridBtn.addEventListener('click', () => {
-        resetGridGame();
-    });
-}
-
-const gridSizeInput = document.getElementById('grid-size-input');
-const gridSizeDisplay = document.getElementById('grid-size-display');
-if (gridSizeInput && gridSizeDisplay) {
-    gridSizeInput.addEventListener('input', () => {
-        const newSize = parseInt(gridSizeInput.value);
-        gridSize = newSize;
-        gridSizeDisplay.textContent = newSize;
-        if (gridGameActive) {
-            renderGrid();
-        }
-    });
-}
 
 // Chord-Grid event listeners
 const chordGridSizeInput = document.getElementById('chord-grid-size-input');
@@ -317,6 +269,29 @@ if (backToMainFromChordGridBtn) {
         }
         showMainMenu();
     });
+}
+
+const cgHotkeysConfigBtn = document.getElementById('cg-hotkeys-config-btn');
+if (cgHotkeysConfigBtn) {
+    cgHotkeysConfigBtn.addEventListener('click', showChordGridHotkeys);
+}
+
+const backToChordGridFromHotkeysBtn = document.getElementById('back-to-chord-grid-from-hotkeys-btn');
+if (backToChordGridFromHotkeysBtn) {
+    backToChordGridFromHotkeysBtn.addEventListener('click', showChordGridMode);
+}
+
+const saveCGHotkeysBtn = document.getElementById('save-cg-hotkeys-btn');
+if (saveCGHotkeysBtn) {
+    saveCGHotkeysBtn.addEventListener('click', () => {
+        saveCGHotkeyConfig();
+        showChordGridMode();
+    });
+}
+
+const resetCGHotkeysBtn = document.getElementById('reset-cg-hotkeys-btn');
+if (resetCGHotkeysBtn) {
+    resetCGHotkeysBtn.addEventListener('click', resetCGHotkeyConfig);
 }
 
 const startChordGridBtn = document.getElementById('start-chord-grid-btn');

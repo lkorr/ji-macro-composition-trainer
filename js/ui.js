@@ -22,7 +22,7 @@ const keyboardLegendGrid = document.getElementById('keyboard-legend-grid');
 // Navigation functions
 const ALL_PANEL_IDS = [
     'main-menu-panel', 'adaptive-mode-panel', 'adaptive-chord-mode-panel',
-    'grid-mode-panel', 'chord-grid-mode-panel', 'chord-grid-game-panel',
+    'chord-grid-mode-panel', 'chord-grid-game-panel', 'chord-grid-hotkeys-panel',
     'mapping-panel', 'game-panel'
 ];
 
@@ -52,10 +52,6 @@ function showMappingConfig() {
     renderMappingConfig();
 }
 
-function showGridMode() {
-    showPanel('grid-mode-panel');
-}
-
 function showGame() {
     showPanel('game-panel');
 }
@@ -67,6 +63,48 @@ function showChordGridMode() {
 
 function showChordGridGame() {
     showPanel('chord-grid-game-panel');
+}
+
+function showChordGridHotkeys() {
+    showPanel('chord-grid-hotkeys-panel');
+    renderCGHotkeyConfig();
+}
+
+function renderCGHotkeyConfig() {
+    const leftInput = document.getElementById('cg-move-left-input');
+    const upInput = document.getElementById('cg-move-up-input');
+    const downInput = document.getElementById('cg-move-down-input');
+    const rightInput = document.getElementById('cg-move-right-input');
+    const captureInput = document.getElementById('cg-capture-key-input');
+    if (leftInput) leftInput.value = cgMoveLeft;
+    if (upInput) upInput.value = cgMoveUp;
+    if (downInput) downInput.value = cgMoveDown;
+    if (rightInput) rightInput.value = cgMoveRight;
+    if (captureInput) captureInput.value = cgCaptureKey === 'tab' ? 'Tab' : cgCaptureKey;
+}
+
+function saveCGHotkeyConfig() {
+    const leftInput = document.getElementById('cg-move-left-input');
+    const upInput = document.getElementById('cg-move-up-input');
+    const downInput = document.getElementById('cg-move-down-input');
+    const rightInput = document.getElementById('cg-move-right-input');
+    const captureInput = document.getElementById('cg-capture-key-input');
+    if (leftInput && leftInput.value.length === 1) cgMoveLeft = leftInput.value.toLowerCase();
+    if (upInput && upInput.value.length === 1) cgMoveUp = upInput.value.toLowerCase();
+    if (downInput && downInput.value.length === 1) cgMoveDown = downInput.value.toLowerCase();
+    if (rightInput && rightInput.value.length === 1) cgMoveRight = rightInput.value.toLowerCase();
+    if (captureInput) {
+        const v = captureInput.value.trim().toLowerCase();
+        if (v === 'tab' || v.length === 1) cgCaptureKey = v;
+    }
+    saveSettings();
+}
+
+function resetCGHotkeyConfig() {
+    cgMoveLeft = 'a'; cgMoveUp = 's'; cgMoveDown = 'd'; cgMoveRight = 'f';
+    cgCaptureKey = 'tab';
+    renderCGHotkeyConfig();
+    saveSettings();
 }
 
 // Mapping configuration
@@ -255,6 +293,8 @@ function saveSettings() {
         // Chord-Grid settings
         chordGridRandomStart: chordGridRandomStart,
         chordGridIncludeInversions: chordGridIncludeInversions,
+        cgMoveLeft: cgMoveLeft, cgMoveUp: cgMoveUp, cgMoveDown: cgMoveDown, cgMoveRight: cgMoveRight,
+        cgCaptureKey: cgCaptureKey,
         cgMasteryThreshold: document.getElementById('cg-mastery-threshold-input')?.value ?? 10,
         cgMinAttempts: document.getElementById('cg-min-attempts-input')?.value ?? 5,
         cgRollingWindow: document.getElementById('cg-rolling-average-window-input')?.value ?? 3,
@@ -296,6 +336,11 @@ function loadSettings() {
             if (settings.includeInversions !== undefined) includeInversions = settings.includeInversions;
             if (settings.chordGridRandomStart !== undefined) chordGridRandomStart = settings.chordGridRandomStart;
             if (settings.chordGridIncludeInversions !== undefined) chordGridIncludeInversions = settings.chordGridIncludeInversions;
+            if (settings.cgMoveLeft !== undefined) cgMoveLeft = settings.cgMoveLeft;
+            if (settings.cgMoveUp !== undefined) cgMoveUp = settings.cgMoveUp;
+            if (settings.cgMoveDown !== undefined) cgMoveDown = settings.cgMoveDown;
+            if (settings.cgMoveRight !== undefined) cgMoveRight = settings.cgMoveRight;
+            if (settings.cgCaptureKey !== undefined) cgCaptureKey = settings.cgCaptureKey;
 
             // Restore UI elements
             const masteryInput = document.getElementById('mastery-threshold-input');
