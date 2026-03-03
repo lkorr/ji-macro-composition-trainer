@@ -20,6 +20,7 @@ const ALL_PANEL_IDS = [
     'main-menu-panel', 'adaptive-mode-panel', 'adaptive-chord-mode-panel',
     'chord-grid-mode-panel', 'chord-grid-game-panel',
     'onslaught-mode-panel', 'onslaught-game-panel',
+    'pianoroll-mode-panel', 'pianoroll-game-panel',
     'hotkeys-panel', 'game-panel'
 ];
 
@@ -264,8 +265,22 @@ function saveSettings() {
         earTrainingMode: earTrainingMode,
 
         // Onslaught arpeggio settings
-        onslaughtArpeggio: document.getElementById('onslaught-arpeggio-checkbox')?.checked ?? false,
-        onslaughtArpeggioDirection: document.getElementById('onslaught-arpeggio-direction')?.value ?? 'ascending'
+        onslaughtArpeggioDirection: document.getElementById('onslaught-arpeggio-direction')?.value ?? 'ascending',
+
+        // Piano Roll settings
+        prEdo: document.getElementById('pianoroll-edo-input')?.value ?? 12,
+        prSpawnOctaves: document.getElementById('pianoroll-spawn-octaves-input')?.value ?? 2,
+        prColumns: document.getElementById('pianoroll-columns-input')?.value ?? 12,
+        prFadeTime: document.getElementById('pianoroll-fade-time-input')?.value ?? 15,
+        prSpawnInterval: document.getElementById('pianoroll-spawn-interval-input')?.value ?? 10,
+        prArpMode: document.getElementById('pianoroll-arp-mode-select')?.value ?? 'off',
+        prArpChance: document.getElementById('pianoroll-arp-chance-input')?.value ?? 30,
+        prIncludeIntervals: document.getElementById('pianoroll-include-intervals-checkbox')?.checked ?? false,
+        prShowCursorLabel: document.getElementById('pianoroll-cursor-label-checkbox')?.checked ?? true,
+        prPrimeLimit: document.getElementById('pianoroll-prime-limit-select')?.value ?? 13,
+        prMistakeExpires: document.getElementById('pianoroll-mistake-expires-checkbox')?.checked ?? false,
+        prMistakePenalty: document.getElementById('pianoroll-mistake-penalty-input')?.value ?? 0.2,
+        prExpirePenalty: document.getElementById('pianoroll-expire-penalty-input')?.value ?? 0.5
     };
 
     localStorage.setItem('ji_trainer_settings', JSON.stringify(settings));
@@ -366,18 +381,39 @@ function loadSettings() {
             if (cgNonMasteredRateInput) cgNonMasteredRateInput.value = settings.cgNonMasteredRate ?? 80;
 
             // Restore onslaught arpeggio settings
-            const onslaughtArpeggioCheckbox = document.getElementById('onslaught-arpeggio-checkbox');
-            const onslaughtArpeggioDirectionRow = document.getElementById('onslaught-arpeggio-direction-row');
             const onslaughtArpeggioDirection = document.getElementById('onslaught-arpeggio-direction');
-            if (onslaughtArpeggioCheckbox && settings.onslaughtArpeggio !== undefined) {
-                onslaughtArpeggioCheckbox.checked = settings.onslaughtArpeggio;
-                if (onslaughtArpeggioDirectionRow) {
-                    onslaughtArpeggioDirectionRow.style.display = settings.onslaughtArpeggio ? 'flex' : 'none';
-                }
-            }
             if (onslaughtArpeggioDirection && settings.onslaughtArpeggioDirection !== undefined) {
                 onslaughtArpeggioDirection.value = settings.onslaughtArpeggioDirection;
             }
+
+            // Restore piano roll settings
+            const prEdoInput = document.getElementById('pianoroll-edo-input');
+            const prSpawnOctavesInput = document.getElementById('pianoroll-spawn-octaves-input');
+            const prColumnsInput = document.getElementById('pianoroll-columns-input');
+            const prFadeTimeInput = document.getElementById('pianoroll-fade-time-input');
+            const prSpawnIntervalInput = document.getElementById('pianoroll-spawn-interval-input');
+            const prArpModeSelect = document.getElementById('pianoroll-arp-mode-select');
+            const prArpChanceInput = document.getElementById('pianoroll-arp-chance-input');
+            const prIncludeIntervalsCheckbox = document.getElementById('pianoroll-include-intervals-checkbox');
+            const prCursorLabelCheckbox = document.getElementById('pianoroll-cursor-label-checkbox');
+            const prMistakeExpiresCheckbox = document.getElementById('pianoroll-mistake-expires-checkbox');
+            const prMistakePenaltyInput = document.getElementById('pianoroll-mistake-penalty-input');
+            const prExpirePenaltyInput = document.getElementById('pianoroll-expire-penalty-input');
+
+            if (prEdoInput && settings.prEdo !== undefined) prEdoInput.value = settings.prEdo;
+            if (prSpawnOctavesInput && settings.prSpawnOctaves !== undefined) prSpawnOctavesInput.value = settings.prSpawnOctaves;
+            if (prColumnsInput && settings.prColumns !== undefined) prColumnsInput.value = settings.prColumns;
+            if (prFadeTimeInput && settings.prFadeTime !== undefined) prFadeTimeInput.value = settings.prFadeTime;
+            if (prSpawnIntervalInput && settings.prSpawnInterval !== undefined) prSpawnIntervalInput.value = settings.prSpawnInterval;
+            if (prArpModeSelect && settings.prArpMode !== undefined) prArpModeSelect.value = settings.prArpMode;
+            if (prArpChanceInput && settings.prArpChance !== undefined) prArpChanceInput.value = settings.prArpChance;
+            if (prIncludeIntervalsCheckbox && settings.prIncludeIntervals !== undefined) prIncludeIntervalsCheckbox.checked = settings.prIncludeIntervals;
+            if (prCursorLabelCheckbox && settings.prShowCursorLabel !== undefined) prCursorLabelCheckbox.checked = settings.prShowCursorLabel;
+            const prPrimeLimitSelect = document.getElementById('pianoroll-prime-limit-select');
+            if (prPrimeLimitSelect && settings.prPrimeLimit !== undefined) prPrimeLimitSelect.value = settings.prPrimeLimit;
+            if (prMistakeExpiresCheckbox && settings.prMistakeExpires !== undefined) prMistakeExpiresCheckbox.checked = settings.prMistakeExpires;
+            if (prMistakePenaltyInput && settings.prMistakePenalty !== undefined) prMistakePenaltyInput.value = settings.prMistakePenalty;
+            if (prExpirePenaltyInput && settings.prExpirePenalty !== undefined) prExpirePenaltyInput.value = settings.prExpirePenalty;
 
             return true;
         } catch (e) {
@@ -591,8 +627,10 @@ function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowVal
         const barWidth = noteWidth / slotCount;
 
         // Slot highlight
-        const slotX = arrowWidth + currentSlot * barWidth;
-        svg += `<rect x="${slotX}" y="0" width="${barWidth}" height="${height}" fill="rgba(255,255,255,0.12)"/>`;
+        if (currentSlot !== null && currentSlot !== undefined) {
+            const slotX = arrowWidth + currentSlot * barWidth;
+            svg += `<rect x="${slotX}" y="0" width="${barWidth}" height="${height}" fill="rgba(255,255,255,0.12)"/>`;
+        }
 
         orderedIntervals.forEach((interval, slotIndex) => {
             const pos = Math.log2(interval.num / interval.denom);
@@ -605,6 +643,16 @@ function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowVal
             svg += `<rect x="${x}" y="${y}" width="${barWidth - 1}" height="${barHeight}"
                     fill="${color}" stroke="#000" stroke-width="1" rx="2"/>`;
         });
+
+        // Arrow tracks the current composition value (follows what user has typed so far)
+        if (arrowValue && currentSlot !== null && currentSlot !== undefined) {
+            const currentPos = Math.log2(arrowValue.num / arrowValue.denom);
+            const normalizedPos = (currentPos - paddedMin) / totalRange;
+            const arrowY = height - (normalizedPos * height);
+            const slotOffsetX = currentSlot * barWidth;
+            svg += `<path d="M ${arrowWidth - 5 + slotOffsetX} ${arrowY} L ${5 + slotOffsetX} ${arrowY - 6} L ${5 + slotOffsetX} ${arrowY + 6} Z"
+                    fill="#4caf50" class="root-arrow"/>`;
+        }
     } else {
         intervals.forEach((interval, index) => {
             const pos = positions[index];
@@ -618,7 +666,7 @@ function renderPianoRollSVG({ containerId, intervals, enteredIntervals, arrowVal
         });
     }
 
-    if (arrowValue) {
+    if (!arpeggio && arrowValue) {
         const currentPos = Math.log2(arrowValue.num / arrowValue.denom);
         const normalizedPos = (currentPos - paddedMin) / totalRange;
         const arrowY = height - (normalizedPos * height);
@@ -725,6 +773,15 @@ function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue, ar
             const x = noteX + slotIndex * barWidth;
             svg += `<rect x="${x}" y="${y}" width="${barWidth - 1}" height="${barH}" fill="${fill}" rx="1"/>`;
         });
+
+        // Arrow tracks the current composition value (follows what user has typed so far)
+        if (arrowValue && currentSlot !== null && currentSlot !== undefined) {
+            const pos = Math.log2(arrowValue.num / arrowValue.denom);
+            const norm = (pos - paddedMin) / totalRange;
+            const ay = labelH + rollH - (norm * rollH);
+            const slotOffsetX = currentSlot * barWidth;
+            svg += `<path d="M ${arrowW + slotOffsetX} ${ay} L ${2 + slotOffsetX} ${ay - 4} L ${2 + slotOffsetX} ${ay + 4} Z" fill="#4caf50"/>`;
+        }
     } else {
         intervals.forEach((interval, idx) => {
             const pos = positions[idx];
@@ -734,14 +791,14 @@ function buildTargetCellSVG({ label, intervals, enteredIntervals, arrowValue, ar
             const fill = isEntered ? '#4caf50' : 'rgba(255,255,255,0.5)';
             svg += `<rect x="${noteX}" y="${y}" width="${noteW}" height="${barH}" fill="${fill}" rx="1"/>`;
         });
-    }
 
-    // Arrow
-    if (arrowValue) {
-        const pos = Math.log2(arrowValue.num / arrowValue.denom);
-        const norm = (pos - paddedMin) / totalRange;
-        const ay = labelH + rollH - (norm * rollH);
-        svg += `<path d="M ${arrowW} ${ay} L 2 ${ay - 4} L 2 ${ay + 4} Z" fill="#4caf50"/>`;
+        // Arrow for non-arpeggio mode
+        if (arrowValue) {
+            const pos = Math.log2(arrowValue.num / arrowValue.denom);
+            const norm = (pos - paddedMin) / totalRange;
+            const ay = labelH + rollH - (norm * rollH);
+            svg += `<path d="M ${arrowW} ${ay} L 2 ${ay - 4} L 2 ${ay + 4} Z" fill="#4caf50"/>`;
+        }
     }
 
     svg += '</svg>';

@@ -140,6 +140,7 @@ if (onslaughtClearPoolBtn) {
 
 // Initialize cards on load
 renderOnslaughtLevelCards();
+renderPianoRollLevelCards();
 
 const onslaughtGridSizeInput = document.getElementById('onslaught-grid-size-input');
 const onslaughtGridSizeDisplay = document.getElementById('onslaught-grid-size-display');
@@ -154,11 +155,114 @@ if (endOnslaughtBtn) {
     endOnslaughtBtn.addEventListener('click', endOnslaughtGame);
 }
 
-const onslaughtArpeggioCheckbox = document.getElementById('onslaught-arpeggio-checkbox');
-const onslaughtArpeggioDirectionRow = document.getElementById('onslaught-arpeggio-direction-row');
-if (onslaughtArpeggioCheckbox && onslaughtArpeggioDirectionRow) {
-    onslaughtArpeggioCheckbox.addEventListener('change', () => {
-        onslaughtArpeggioDirectionRow.style.display = onslaughtArpeggioCheckbox.checked ? 'flex' : 'none';
+const onslaughtArpeggioTagBtn = document.getElementById('onslaught-arpeggio-tag-btn');
+if (onslaughtArpeggioTagBtn) {
+    onslaughtArpeggioTagBtn.addEventListener('click', () => {
+        const textarea = document.getElementById('onslaught-custom-chords-input');
+        if (!textarea) return;
+
+        const full = textarea.value;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        // Expand selection to cover full lines
+        const lineStart = full.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = full.indexOf('\n', end) === -1 ? full.length : full.indexOf('\n', end);
+        const selectedText = full.slice(lineStart, lineEnd);
+
+        const lines = selectedText.split('\n');
+        const validLines = lines.filter(l => {
+            const t = l.trim();
+            return t && !t.startsWith('//') && !t.startsWith('#');
+        });
+
+        // If all valid selected lines already have : arp, remove; otherwise add
+        const allTagged = validLines.length > 0 && validLines.every(l => /\s*:\s*arp\s*$/i.test(l));
+
+        const newSelected = lines.map(line => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#')) return line;
+            const hasArp = /\s*:\s*arp\s*$/i.test(trimmed);
+            if (!allTagged && !hasArp) return line.trimEnd() + ' : arp';
+            if (allTagged && hasArp) return line.replace(/\s*:\s*arp\s*$/i, '');
+            return line;
+        }).join('\n');
+
+        textarea.value = full.slice(0, lineStart) + newSelected + full.slice(lineEnd);
+        // Restore selection over the modified lines
+        textarea.selectionStart = lineStart;
+        textarea.selectionEnd = lineStart + newSelected.length;
+        validateCustomChords();
+    });
+}
+
+const onslaughtAddInversionsBtn = document.getElementById('onslaught-add-inversions-btn');
+if (onslaughtAddInversionsBtn) {
+    onslaughtAddInversionsBtn.addEventListener('click', () => {
+        const textarea = document.getElementById('onslaught-custom-chords-input');
+        if (!textarea) return;
+
+        const full = textarea.value;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        // Expand selection to cover full lines
+        const lineStart = full.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = full.indexOf('\n', end) === -1 ? full.length : full.indexOf('\n', end);
+        const selectedText = full.slice(lineStart, lineEnd);
+
+        const newLines = [];
+        for (const line of selectedText.split('\n')) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#')) continue;
+            const invLines = generateInversionLines(trimmed);
+            newLines.push(...invLines);
+        }
+
+        if (!newLines.length) return;
+        const toAppend = '\n' + newLines.join('\n');
+        textarea.value = full + toAppend;
+        validateCustomChords();
+    });
+}
+
+// Piano Roll Onslaught mode
+const selectPianoRollModeBtn = document.getElementById('select-pianoroll-mode-btn');
+if (selectPianoRollModeBtn) {
+    selectPianoRollModeBtn.addEventListener('click', () => {
+        renderPianoRollLevelCards();
+        showPanel('pianoroll-mode-panel');
+    });
+}
+
+const backToMainFromPianoRollBtn = document.getElementById('back-to-main-from-pianoroll-btn');
+if (backToMainFromPianoRollBtn) {
+    backToMainFromPianoRollBtn.addEventListener('click', showMainMenu);
+}
+
+const startPianoRollBtn = document.getElementById('start-pianoroll-btn');
+if (startPianoRollBtn) {
+    startPianoRollBtn.addEventListener('click', () => {
+        initAudio();
+        startPianoRollGame();
+    });
+}
+
+const endPianoRollBtn = document.getElementById('end-pianoroll-btn');
+if (endPianoRollBtn) {
+    endPianoRollBtn.addEventListener('click', endPianoRollGame);
+}
+
+const pianorollCustomTextarea = document.getElementById('pianoroll-custom-chords-input');
+if (pianorollCustomTextarea) {
+    pianorollCustomTextarea.addEventListener('input', validatePianoRollCustomChords);
+}
+
+const pianorollClearPoolBtn = document.getElementById('pianoroll-clear-pool-btn');
+if (pianorollClearPoolBtn) {
+    pianorollClearPoolBtn.addEventListener('click', () => {
+        const ta = document.getElementById('pianoroll-custom-chords-input');
+        if (ta) { ta.value = ''; validatePianoRollCustomChords(); }
     });
 }
 
@@ -329,8 +433,8 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
-    // Submit key - check answer
-    if (key === submitKey.toLowerCase()) {
+    // Submit key (or Tab) - check answer
+    if (key === submitKey.toLowerCase() || e.key === 'Tab') {
         e.preventDefault();
         if (currentComposition.length === 0) return;
 
@@ -368,6 +472,14 @@ document.addEventListener('keydown', (event) => {
 document.addEventListener('keydown', (event) => {
     if (onslaughtActive) {
         handleOnslaughtKeyPress(event);
+    }
+});
+
+// Piano Roll keydown listener
+document.addEventListener('keydown', (event) => {
+    if (prActive) {
+        if (event.key === 'Tab') event.preventDefault();
+        handlePianoRollKeyPress(event);
     }
 });
 
@@ -493,8 +605,21 @@ document.addEventListener('DOMContentLoaded', () => {
         'onslaught-mistake-penalty-input',
         'onslaught-expire-penalty-input',
         'onslaught-show-chord-info-checkbox',
-        'onslaught-arpeggio-checkbox',
-        'onslaught-arpeggio-direction'
+        'onslaught-arpeggio-direction',
+        // Piano Roll settings
+        'pianoroll-edo-input',
+        'pianoroll-spawn-octaves-input',
+        'pianoroll-columns-input',
+        'pianoroll-fade-time-input',
+        'pianoroll-spawn-interval-input',
+        'pianoroll-arp-mode-select',
+        'pianoroll-arp-chance-input',
+        'pianoroll-include-intervals-checkbox',
+        'pianoroll-cursor-label-checkbox',
+        'pianoroll-prime-limit-select',
+        'pianoroll-mistake-expires-checkbox',
+        'pianoroll-mistake-penalty-input',
+        'pianoroll-expire-penalty-input'
     ];
 
     settingsInputs.forEach(id => {

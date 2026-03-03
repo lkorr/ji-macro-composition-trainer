@@ -29,6 +29,9 @@
                 <button id="select-onslaught-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
                     ⚡ Onslaught Mode
                 </button>
+                <button id="select-pianoroll-mode-btn" class="btn-primary" style="font-size: 1.2em; padding: 20px 40px; margin: 20px;">
+                    Piano Roll Onslaught
+                </button>
             </div>
             <div style="text-align: center; margin-top: 10px;">
                 <a href="help.html" style="color: #888; font-size: 0.9em; text-decoration: none; border-bottom: 1px dotted #bbb;">
@@ -407,12 +410,10 @@
                     </label>
                 </div>
                 <div class="setting-row">
-                    <label>
-                        <input type="checkbox" id="onslaught-arpeggio-checkbox">
-                        Arpeggio mode
-                    </label>
+                    <button id="onslaught-arpeggio-tag-btn" class="btn-secondary" style="padding:3px 12px; font-size:0.82em;">Toggle arp on highlighted chords</button>
+                    <button id="onslaught-add-inversions-btn" class="btn-secondary" style="padding:3px 12px; font-size:0.82em; margin-left:6px;">Add inversions of highlighted chords</button>
                 </div>
-                <div class="setting-row" id="onslaught-arpeggio-direction-row" style="display:none;">
+                <div class="setting-row" id="onslaught-arpeggio-direction-row">
                     <label>Direction:
                         <select id="onslaught-arpeggio-direction">
                             <option value="ascending">Ascending (low → high)</option>
@@ -519,6 +520,148 @@
             <div id="onslaught-keyboard-legend" class="keyboard-legend" style="display:none;">
                 <h3>Keyboard Reference</h3>
                 <div class="legend-grid" id="onslaught-legend-grid"></div>
+            </div>
+        </div>
+
+        <!-- Piano Roll Onslaught Settings Panel -->
+        <div id="pianoroll-mode-panel" class="panel" style="display: none;">
+            <div class="panel-header">
+                <h2>Piano Roll Onslaught</h2>
+                <button id="back-to-main-from-pianoroll-btn" class="btn-secondary">&larr; Back to Main Menu</button>
+            </div>
+            <p style="color:#666; margin-bottom: 16px;">Chord targets spawn on a piano roll grid. Navigate with movement keys, jump intervals with ratio keys, place notes with Tab/backtick. Match ghost-note outlines to score points before they expire.</p>
+
+            <div class="onslaught-level-section">
+                <h3>Chord Pool</h3>
+                <p class="custom-editor-hint" style="margin-bottom:10px;">Click cards to add chords to the pool. Edit freely or write your own as <code>[1/1, 5/4, 3/2] : Name</code>.</p>
+                <div class="onslaught-level-cards" id="pianoroll-level-cards"></div>
+
+                <div class="onslaught-custom-editor">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:0.85em; color:#555;">Pool (one chord per line)</span>
+                        <button id="pianoroll-clear-pool-btn" class="btn-secondary" style="padding:3px 12px; font-size:0.82em;">Clear</button>
+                    </div>
+                    <textarea id="pianoroll-custom-chords-input" class="custom-chords-textarea" rows="7"
+                        placeholder="[1/1, 5/4, 3/2] : Major&#10;[1/1, 6/5, 3/2] : Minor&#10;[4, 5, 6, 7] : Harmonic 7th"></textarea>
+                    <div id="pianoroll-custom-parse-status" class="custom-parse-status"></div>
+                </div>
+            </div>
+
+            <div class="adaptive-settings" style="margin-top:20px;">
+                <h3>Settings</h3>
+                <div class="setting-row">
+                    <label>EDO:
+                        <input type="number" id="pianoroll-edo-input" min="2" max="128" value="12" class="small-number-input">
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Spawn Range:
+                        <input type="number" id="pianoroll-spawn-octaves-input" min="1" max="10" value="2" class="small-number-input"> octaves (centered on middle C)
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Beat Columns:
+                        <input type="number" id="pianoroll-columns-input" min="4" max="24" value="12" class="small-number-input">
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Target Fade Time:
+                        <input type="number" id="pianoroll-fade-time-input" min="5" max="120" step="1" value="15" class="small-number-input"> seconds
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Starting Spawn Interval:
+                        <input type="number" id="pianoroll-spawn-interval-input" min="3" max="60" step="1" value="10" class="small-number-input"> seconds
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Arpeggio Mode:
+                        <select id="pianoroll-arp-mode-select">
+                            <option value="off">Off (stacked chords)</option>
+                            <option value="ascending">Ascending</option>
+                            <option value="descending">Descending</option>
+                            <option value="both">Random direction</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Arpeggio Chance:
+                        <input type="number" id="pianoroll-arp-chance-input" min="0" max="100" step="5" value="30" class="small-number-input">%
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="pianoroll-include-intervals-checkbox">
+                        Also spawn individual intervals from chords
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="pianoroll-cursor-label-checkbox" checked>
+                        Show interval label on cursor
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Label Prime Limit:
+                        <select id="pianoroll-prime-limit-select">
+                            <option value="5">5-limit</option>
+                            <option value="7">7-limit</option>
+                            <option value="11">11-limit</option>
+                            <option value="13" selected>13-limit</option>
+                            <option value="17">17-limit</option>
+                            <option value="19">19-limit</option>
+                            <option value="23">23-limit</option>
+                            <option value="29">29-limit</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>
+                        <input type="checkbox" id="pianoroll-mistake-expires-checkbox">
+                        Lose target on wrong note
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Spawn penalty per mistake:
+                        <input type="number" id="pianoroll-mistake-penalty-input" min="0" max="30" step="0.1" value="0.2" class="small-number-input"> s
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <label>Spawn penalty per expiry:
+                        <input type="number" id="pianoroll-expire-penalty-input" min="0" max="30" step="0.1" value="0.5" class="small-number-input"> s
+                    </label>
+                </div>
+            </div>
+
+            <div class="adaptive-actions">
+                <button id="start-pianoroll-btn" class="btn-primary large-btn">Start Piano Roll</button>
+            </div>
+        </div>
+
+        <!-- Piano Roll Game Panel -->
+        <div id="pianoroll-game-panel" class="panel" style="display: none;">
+            <div class="game-panel-header">
+                <div class="pr-hud">
+                    <span class="score-label">Score: <strong id="pianoroll-score">0</strong></span>
+                    <span class="score-label">Spawn: <strong id="pianoroll-spawn-display">10.0s</strong></span>
+                    <span class="score-label">Time: <span id="pianoroll-timer">0:00</span></span>
+                </div>
+                <div class="header-buttons">
+                    <button id="end-pianoroll-btn" class="btn-secondary">End Game</button>
+                </div>
+            </div>
+
+            <div class="pr-viewport">
+                <div id="pr-zoom-sidebar" class="pr-zoom-sidebar"></div>
+                <div id="pr-sidebar" class="pr-sidebar"></div>
+                <div id="pr-wrapper" class="pr-wrapper">
+                    <div id="pr-grid" class="pr-grid"></div>
+                </div>
+            </div>
+
+            <div class="pr-controls-ref">
+                <p><strong>A</strong>/<strong>F</strong> = column left/right &nbsp; <strong>S</strong>/<strong>D</strong> = pitch up/down &nbsp; <strong>1-0, Q-P</strong> = jump by JI interval</p>
+                <p><strong>Tab</strong> = place note + set save point &nbsp; <strong>`</strong> = place note + return to save point &nbsp; <strong>Backspace</strong> = remove note</p>
             </div>
         </div>
 
@@ -767,6 +910,7 @@
     <script src="js/game-chords.js"></script>
     <script src="js/game-chord-grid.js"></script>
     <script src="js/game-onslaught.js"></script>
+    <script src="js/game-pianoroll.js"></script>
     <script src="js/init.js"></script>
 </body>
 </html>
